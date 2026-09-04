@@ -338,14 +338,7 @@
   // Edit Mode Toggle Listener
   editModeToggle.addEventListener('change', (e) => {
     editMode = e.target.checked;
-    document.body.classList.toggle('edit-mode-active', editMode);
-    if (editMode) {
-      stopTicker();
-      renderCountdowns();
-    } else {
-      renderCountdowns();
-      startTicker();
-    }
+    renderCountdowns();
   });
 
   // Add Countdown Form Submit
@@ -411,147 +404,6 @@
     renderCountdowns();
   }
 
-  // Ticker Management (Pause/Freeze when in Edit Mode)
-  let tickIntervalId = null;
-  let isDraggingCard = false;
-
-  function startTicker() {
-    if (!tickIntervalId) {
-      tickIntervalId = setInterval(() => {
-        if (!editMode && !isDraggingCard) {
-          renderCountdowns();
-        }
-      }, 1000);
-    }
-  }
-
-  function stopTicker() {
-    if (tickIntervalId) {
-      clearInterval(tickIntervalId);
-      tickIntervalId = null;
-    }
-  }
-
-  // Hold-to-Carry Drag & Drop Reordering (500ms hold in Edit Mode)
-  function setupCardDrag(card, item) {
-    const handle = card.querySelector('.countdown-units');
-    if (!handle) return;
-
-    let holdTimer = null;
-    let startY = 0;
-    let initialCardTop = 0;
-    let placeholder = null;
-    let isCurrentDragging = false;
-
-    function onPointerDown(e) {
-      if (!editMode || e.button !== 0) return;
-      startY = e.clientY;
-      isCurrentDragging = false;
-
-      clearTimeout(holdTimer);
-      holdTimer = setTimeout(() => {
-        isCurrentDragging = true;
-        isDraggingCard = true;
-        if (navigator.vibrate) navigator.vibrate(40);
-
-        try {
-          handle.setPointerCapture(e.pointerId);
-        } catch (err) {}
-
-        const rect = card.getBoundingClientRect();
-        initialCardTop = rect.top;
-
-        // Create placeholder in list
-        placeholder = document.createElement('div');
-        placeholder.className = 'countdown-card drag-placeholder';
-        placeholder.style.height = `${rect.height}px`;
-        placeholder.style.minHeight = `${rect.height}px`;
-        card.parentNode.insertBefore(placeholder, card);
-
-        // Make card floating
-        card.classList.add('is-dragging');
-        card.style.position = 'fixed';
-        card.style.top = `${rect.top}px`;
-        card.style.left = `${rect.left}px`;
-        card.style.width = `${rect.width}px`;
-        card.style.zIndex = '1000';
-      }, 500);
-    }
-
-    function onPointerMove(e) {
-      if (!isCurrentDragging) {
-        if (Math.abs(e.clientY - startY) > 8) {
-          clearTimeout(holdTimer);
-        }
-        return;
-      }
-
-      e.preventDefault();
-      const currentY = e.clientY;
-      const deltaY = currentY - startY;
-      card.style.top = `${initialCardTop + deltaY}px`;
-
-      // Find sibling under pointer
-      const cards = Array.from(countdownList.querySelectorAll('.countdown-card:not(.is-dragging):not(.drag-placeholder)'));
-      for (const sibling of cards) {
-        const siblingRect = sibling.getBoundingClientRect();
-        const siblingMidY = siblingRect.top + siblingRect.height / 2;
-
-        if (currentY < siblingMidY && placeholder.compareDocumentPosition(sibling) & Node.DOCUMENT_POSITION_FOLLOWING) {
-          countdownList.insertBefore(placeholder, sibling);
-          break;
-        } else if (currentY > siblingMidY && placeholder.compareDocumentPosition(sibling) & Node.DOCUMENT_POSITION_PRECEDING) {
-          countdownList.insertBefore(placeholder, sibling.nextSibling);
-          break;
-        }
-      }
-    }
-
-    function onPointerUp(e) {
-      clearTimeout(holdTimer);
-      if (!isCurrentDragging) return;
-
-      isCurrentDragging = false;
-      isDraggingCard = false;
-      if (navigator.vibrate) navigator.vibrate(20);
-
-      try {
-        handle.releasePointerCapture(e.pointerId);
-      } catch (err) {}
-
-      // Calculate new index based on placeholder position
-      if (placeholder && placeholder.parentNode) {
-        const children = Array.from(countdownList.children).filter(el => el.classList.contains('countdown-card') && el !== card);
-        const newIndex = children.indexOf(placeholder);
-        const oldIndex = countdowns.findIndex(c => c.id === item.id);
-
-        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
-          const [movedItem] = countdowns.splice(oldIndex, 1);
-          countdowns.splice(newIndex, 0, movedItem);
-          saveCountdowns();
-        }
-
-        placeholder.remove();
-        placeholder = null;
-      }
-
-      // Reset card styles
-      card.classList.remove('is-dragging');
-      card.style.position = '';
-      card.style.top = '';
-      card.style.left = '';
-      card.style.width = '';
-      card.style.zIndex = '';
-
-      renderCountdowns();
-    }
-
-    handle.addEventListener('pointerdown', onPointerDown);
-    handle.addEventListener('pointermove', onPointerMove);
-    handle.addEventListener('pointerup', onPointerUp);
-    handle.addEventListener('pointercancel', onPointerUp);
-  }
-
   // Render & Update Countdowns
   function renderCountdowns() {
     const now = Date.now();
@@ -590,9 +442,19 @@
         card.innerHTML = `
           <div class="card-bg-gauge"></div>
           <div class="card-content">
+            <div class="card-drag-handle hidden" title="Drag to reorder" aria-label="Drag handle">
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                <circle cx="9" cy="5" r="1.8"/>
+                <circle cx="9" cy="12" r="1.8"/>
+                <circle cx="9" cy="19" r="1.8"/>
+                <circle cx="15" cy="5" r="1.8"/>
+                <circle cx="15" cy="12" r="1.8"/>
+                <circle cx="15" cy="19" r="1.8"/>
+              </svg>
+            </div>
             <h3 class="card-title"></h3>
             <div class="card-actions">
-              <div class="countdown-units" title="Hold 0.5s in Edit Mode to reorder">
+              <div class="countdown-units">
                 <div class="unit-block">
                   <span class="unit-value unit1-val">00</span>
                   <span class="unit-label unit1-lbl">D</span>
@@ -650,11 +512,9 @@
           deleteCountdown(item.id);
         });
 
-        setupCardDrag(card, item);
         countdownList.appendChild(card);
       } else {
         existingCards.delete(item.id);
-        countdownList.appendChild(card);
       }
 
       // Update Card Content
@@ -663,13 +523,18 @@
         titleEl.textContent = item.title;
       }
 
-      // Edit Mode Behavior: Toggle contenteditable & delete button
+      // Edit Mode Behavior: Toggle contenteditable, delete button, drag handle & draggable
+      const dragHandle = card.querySelector('.card-drag-handle');
       if (editMode) {
         titleEl.contentEditable = 'true';
         titleEl.title = 'Click to rename';
+        if (dragHandle) dragHandle.classList.remove('hidden');
+        card.setAttribute('draggable', 'true');
       } else {
         titleEl.contentEditable = 'false';
         titleEl.removeAttribute('title');
+        if (dragHandle) dragHandle.classList.add('hidden');
+        card.removeAttribute('draggable');
       }
 
       const deleteBtn = card.querySelector('.card-delete-btn');
@@ -747,6 +612,119 @@
     existingCards.forEach(card => card.remove());
   }
 
+  // Drag and Drop Engine (Desktop Drag & Mobile Touch Reordering)
+  let draggedCard = null;
+
+  function initDragAndDrop() {
+    countdownList.addEventListener('dragstart', (e) => {
+      if (!editMode) {
+        e.preventDefault();
+        return;
+      }
+      const card = e.target.closest('.countdown-card');
+      if (!card) return;
+      draggedCard = card;
+      card.classList.add('dragging');
+      if (e.dataTransfer) {
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', card.dataset.id);
+      }
+    });
+
+    countdownList.addEventListener('dragend', (e) => {
+      const card = e.target.closest('.countdown-card');
+      if (card) card.classList.remove('dragging');
+      if (draggedCard) draggedCard.classList.remove('dragging');
+      draggedCard = null;
+      persistCardOrder();
+    });
+
+    countdownList.addEventListener('dragover', (e) => {
+      if (!editMode || !draggedCard) return;
+      e.preventDefault();
+      if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
+
+      const afterElement = getDragAfterElement(countdownList, e.clientY);
+      if (afterElement == null) {
+        countdownList.appendChild(draggedCard);
+      } else {
+        countdownList.insertBefore(draggedCard, afterElement);
+      }
+    });
+
+    // Touch Support for Mobile Dragging via Drag Handle
+    let activeTouchCard = null;
+
+    countdownList.addEventListener('touchstart', (e) => {
+      if (!editMode) return;
+      const handle = e.target.closest('.card-drag-handle');
+      if (!handle) return;
+      const card = handle.closest('.countdown-card');
+      if (!card) return;
+
+      activeTouchCard = card;
+      activeTouchCard.classList.add('dragging');
+    }, { passive: false });
+
+    countdownList.addEventListener('touchmove', (e) => {
+      if (!editMode || !activeTouchCard) return;
+      e.preventDefault(); // Prevent page scrolling during card drag
+
+      const touchY = e.touches[0].clientY;
+      const afterElement = getDragAfterElement(countdownList, touchY);
+      if (afterElement == null) {
+        countdownList.appendChild(activeTouchCard);
+      } else {
+        countdownList.insertBefore(activeTouchCard, afterElement);
+      }
+    }, { passive: false });
+
+    const handleTouchEnd = () => {
+      if (activeTouchCard) {
+        activeTouchCard.classList.remove('dragging');
+        activeTouchCard = null;
+        persistCardOrder();
+      }
+    };
+
+    countdownList.addEventListener('touchend', handleTouchEnd);
+    countdownList.addEventListener('touchcancel', handleTouchEnd);
+  }
+
+  function getDragAfterElement(container, y) {
+    const draggableElements = [...container.querySelectorAll('.countdown-card:not(.dragging)')];
+
+    return draggableElements.reduce((closest, child) => {
+      const box = child.getBoundingClientRect();
+      const offset = y - box.top - box.height / 2;
+      if (offset < 0 && offset > closest.offset) {
+        return { offset: offset, element: child };
+      } else {
+        return closest;
+      }
+    }, { offset: Number.NEGATIVE_INFINITY }).element;
+  }
+
+  function persistCardOrder() {
+    const currentCardElements = countdownList.querySelectorAll('.countdown-card');
+    const newOrderIds = Array.from(currentCardElements).map(card => card.dataset.id);
+    
+    // Reorder countdowns array according to DOM order
+    countdowns.sort((a, b) => {
+      const idxA = newOrderIds.indexOf(a.id);
+      const idxB = newOrderIds.indexOf(b.id);
+      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+    });
+
+    saveCountdowns();
+  }
+
+  // Real-time ticking loop: Freezes time when Edit Mode is active
+  setInterval(() => {
+    if (editMode) return;
+    renderCountdowns();
+  }, 1000);
+
   // Instant re-sync on mobile unlock
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden && !editMode) renderCountdowns();
@@ -755,10 +733,12 @@
     if (!editMode) renderCountdowns();
   });
 
-  // Initial render & start ticking
+  // Initialize Drag and Drop
+  initDragAndDrop();
+
+  // Initial render
   renderAllShortcuts();
   renderCountdowns();
-  startTicker();
 
   // Service Worker for 100% Offline PWA
   if ('serviceWorker' in navigator) {
