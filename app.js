@@ -440,7 +440,8 @@
         card.dataset.id = item.id;
 
         card.innerHTML = `
-          <div class="card-top">
+          <div class="card-bg-gauge"></div>
+          <div class="card-content">
             <h3 class="card-title"></h3>
             <div class="card-actions">
               <div class="countdown-units">
@@ -460,15 +461,6 @@
                 </svg>
               </button>
             </div>
-          </div>
-
-          <div class="card-progress-track">
-            <div class="card-progress-bar"></div>
-          </div>
-
-          <div class="target-badge">
-            <span class="target-time-label"></span>
-            <span class="status-tag"></span>
           </div>
 
           <button class="card-reset-overlay hidden" type="button" title="Click to reset timer" aria-label="Reset countdown"></button>
@@ -546,9 +538,7 @@
         titleEl.classList.add('title-md');
       }
 
-      card.querySelector('.target-time-label').textContent = `Resets: ${formatTargetDate(item.targetTimestamp)}`;
-
-      // Progressive Loading Bar Calculation (Filling: 0% -> 100%)
+      // Background Progress Fill Gauge Calculation (0% -> 100%)
       const totalDuration = item.initialDurationMs || (item.targetTimestamp - item.createdAt) || 1;
       let progressPercent = 0;
       if (isCompleted) {
@@ -557,16 +547,15 @@
         const elapsed = totalDuration - remainingMs;
         progressPercent = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
       }
-      const progressBar = card.querySelector('.card-progress-bar');
-      if (progressBar) {
-        progressBar.style.width = `${progressPercent.toFixed(2)}%`;
+      const bgGauge = card.querySelector('.card-bg-gauge');
+      if (bgGauge) {
+        bgGauge.style.width = `${progressPercent.toFixed(2)}%`;
       }
 
       const unit1Val = card.querySelector('.unit1-val');
       const unit1Lbl = card.querySelector('.unit1-lbl');
       const unit2Val = card.querySelector('.unit2-val');
       const unit2Lbl = card.querySelector('.unit2-lbl');
-      const statusTag = card.querySelector('.status-tag');
       const resetOverlay = card.querySelector('.card-reset-overlay');
 
       const pad = (n) => String(n).padStart(2, '0');
@@ -584,13 +573,9 @@
         unit1Lbl.textContent = 'H';
         unit2Val.textContent = '00';
         unit2Lbl.textContent = 'M';
-        statusTag.className = 'status-tag done';
-        statusTag.textContent = 'Ready';
       } else {
         card.classList.remove('completed');
         if (resetOverlay) resetOverlay.classList.add('hidden');
-        statusTag.className = 'status-tag active';
-        statusTag.textContent = 'Active';
 
         if (days >= 1) {
           // Case 1: >= 1 day left -> Display Days + Hours
