@@ -1,6 +1,6 @@
 {
-  "name": "TimeKeeper - Offline Countdown",
-  "short_name": "TimeKeeper",
+  "name": "TimeIt - Offline Countdown",
+  "short_name": "TimeIt",
   "description": "Minimal offline-first countdown timer manager for mobile",
   "start_url": "./index.html",
   "display": "standalone",
@@ -9,10 +9,15 @@
   "theme_color": "#090d16",
   "icons": [
     {
+      "src": "Time-Favico.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
       "src": "icon.svg",
       "sizes": "any",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "type": "image/svg+xml"
     }
   ]
 }
