@@ -461,11 +461,11 @@
           <div class="countdown-units">
             <div class="unit-block">
               <span class="unit-value unit1-val">00</span>
-              <span class="unit-label unit1-lbl">DAYS</span>
+              <span class="unit-label unit1-lbl">D</span>
             </div>
             <div class="unit-block">
               <span class="unit-value unit2-val">00</span>
-              <span class="unit-label unit2-lbl">HOURS</span>
+              <span class="unit-label unit2-lbl">H</span>
             </div>
           </div>
 
@@ -559,9 +559,9 @@
         card.classList.add('completed');
         resetBtn.classList.remove('hidden');
         unit1Val.textContent = '00';
-        unit1Lbl.textContent = 'HOURS';
+        unit1Lbl.textContent = 'H';
         unit2Val.textContent = '00';
-        unit2Lbl.textContent = 'MINS';
+        unit2Lbl.textContent = 'M';
         statusTag.className = 'status-tag done';
         statusTag.textContent = 'Ready';
       } else {
@@ -573,15 +573,15 @@
         if (days >= 1) {
           // Case 1: >= 1 day left -> Display Days + Hours
           unit1Val.textContent = pad(days);
-          unit1Lbl.textContent = days === 1 ? 'DAY' : 'DAYS';
+          unit1Lbl.textContent = 'D';
           unit2Val.textContent = pad(hours);
-          unit2Lbl.textContent = hours === 1 ? 'HOUR' : 'HOURS';
+          unit2Lbl.textContent = 'H';
         } else {
           // Case 2: Under 24 hours (days == 0) -> Display Hours + Minutes
           unit1Val.textContent = pad(hours);
-          unit1Lbl.textContent = hours === 1 ? 'HOUR' : 'HOURS';
+          unit1Lbl.textContent = 'H';
           unit2Val.textContent = pad(mins);
-          unit2Lbl.textContent = mins === 1 ? 'MIN' : 'MINS';
+          unit2Lbl.textContent = 'M';
         }
       }
     });
