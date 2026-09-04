@@ -436,7 +436,7 @@
 
       if (!card) {
         card = document.createElement('div');
-        card.className = 'countdown-card';
+        card.className = 'countdown-card card-enter';
         card.dataset.id = item.id;
 
         card.innerHTML = `
@@ -624,11 +624,16 @@
       const card = e.target.closest('.countdown-card');
       if (!card) return;
       draggedCard = card;
-      card.classList.add('dragging');
+
       if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'move';
         e.dataTransfer.setData('text/plain', card.dataset.id);
       }
+
+      // Delay applying dragging class so browser captures a clean drag ghost
+      setTimeout(() => {
+        if (draggedCard) draggedCard.classList.add('dragging');
+      }, 0);
     });
 
     countdownList.addEventListener('dragend', (e) => {
@@ -646,8 +651,10 @@
 
       const afterElement = getDragAfterElement(countdownList, e.clientY);
       if (afterElement == null) {
-        countdownList.appendChild(draggedCard);
-      } else {
+        if (countdownList.lastElementChild !== draggedCard) {
+          countdownList.appendChild(draggedCard);
+        }
+      } else if (afterElement !== draggedCard && afterElement !== draggedCard.nextElementSibling) {
         countdownList.insertBefore(draggedCard, afterElement);
       }
     });
@@ -673,8 +680,10 @@
       const touchY = e.touches[0].clientY;
       const afterElement = getDragAfterElement(countdownList, touchY);
       if (afterElement == null) {
-        countdownList.appendChild(activeTouchCard);
-      } else {
+        if (countdownList.lastElementChild !== activeTouchCard) {
+          countdownList.appendChild(activeTouchCard);
+        }
+      } else if (afterElement !== activeTouchCard && afterElement !== activeTouchCard.nextElementSibling) {
         countdownList.insertBefore(activeTouchCard, afterElement);
       }
     }, { passive: false });
