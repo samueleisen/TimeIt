@@ -466,6 +466,8 @@
             <span class="target-time-label"></span>
             <span class="status-tag"></span>
           </div>
+
+          <button class="card-reset-overlay hidden" type="button" title="Click to reset timer" aria-label="Reset countdown"></button>
         `;
 
         const cardTitleEl = card.querySelector('.card-title');
@@ -491,9 +493,9 @@
           }
         });
 
-        const resetBtnEl = card.querySelector('.card-reset-btn');
-        if (resetBtnEl) {
-          resetBtnEl.addEventListener('click', (e) => {
+        const resetOverlay = card.querySelector('.card-reset-overlay');
+        if (resetOverlay) {
+          resetOverlay.addEventListener('click', (e) => {
             e.stopPropagation();
             resetCountdown(item.id);
           });
@@ -547,13 +549,19 @@
       const unit2Val = card.querySelector('.unit2-val');
       const unit2Lbl = card.querySelector('.unit2-lbl');
       const statusTag = card.querySelector('.status-tag');
-      const resetBtn = card.querySelector('.card-reset-btn');
+      const resetOverlay = card.querySelector('.card-reset-overlay');
 
       const pad = (n) => String(n).padStart(2, '0');
 
       if (isCompleted) {
         card.classList.add('completed');
-        if (resetBtn) resetBtn.classList.remove('hidden');
+        if (resetOverlay) {
+          if (editMode) {
+            resetOverlay.classList.add('hidden');
+          } else {
+            resetOverlay.classList.remove('hidden');
+          }
+        }
         unit1Val.textContent = '00';
         unit1Lbl.textContent = 'H';
         unit2Val.textContent = '00';
@@ -562,7 +570,7 @@
         statusTag.textContent = 'Ready';
       } else {
         card.classList.remove('completed');
-        if (resetBtn) resetBtn.classList.add('hidden');
+        if (resetOverlay) resetOverlay.classList.add('hidden');
         statusTag.className = 'status-tag active';
         statusTag.textContent = 'Active';
 

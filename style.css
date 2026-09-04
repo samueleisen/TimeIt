@@ -189,6 +189,8 @@ html, body {
   cursor: text;
   border-bottom: 1px dashed rgba(99, 102, 241, 0.4);
   padding-bottom: 2px;
+  position: relative;
+  z-index: 5;
   transition: all 0.15s ease;
 }
 
@@ -204,6 +206,8 @@ html, body {
   align-items: center;
   gap: 0.5rem;
   flex-shrink: 0;
+  position: relative;
+  z-index: 5;
 }
 
 /* 1-Tap Reset Button on Card */
@@ -248,6 +252,8 @@ html, body {
   align-items: center;
   justify-content: center;
   cursor: pointer;
+  position: relative;
+  z-index: 5;
   transition: all 0.15s ease;
   flex-shrink: 0;
 }
@@ -287,14 +293,45 @@ html, body {
   text-transform: uppercase;
 }
 
+/* Full-Card Reset Overlay Button for 0-time Timers */
+.card-reset-overlay {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  z-index: 2;
+  transition: background 0.15s ease, box-shadow 0.15s ease;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.card-reset-overlay.hidden {
+  display: none;
+  pointer-events: none;
+}
+
 /* Completed State */
 .countdown-card.completed {
-  border-color: rgba(244, 63, 94, 0.35);
-  background: linear-gradient(135deg, rgba(18, 24, 38, 0.95), rgba(40, 16, 24, 0.75));
+  border-color: rgba(99, 102, 241, 0.45);
+  background: linear-gradient(135deg, rgba(18, 24, 38, 0.95), rgba(30, 27, 75, 0.65));
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.15);
+  cursor: pointer;
+}
+
+.countdown-card.completed:hover .card-reset-overlay {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.countdown-card.completed:active {
+  transform: scale(0.985);
 }
 
 .countdown-card.completed .unit-value {
-  color: #fb7185;
+  color: #a5b4fc;
 }
 
 .target-badge {
