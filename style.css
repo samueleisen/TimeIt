@@ -34,14 +34,15 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html,
+body {
   background-color: var(--bg-canvas);
   color: var(--text-primary);
   font-family: var(--font-sans);
   min-height: 100vh;
   min-height: -webkit-fill-available;
   overflow-x: hidden;
-  background-image: 
+  background-image:
     radial-gradient(ellipse at 50% 0%, rgba(99, 102, 241, 0.12), transparent 70%),
     radial-gradient(ellipse at 50% 100%, rgba(168, 85, 247, 0.06), transparent 70%);
   background-attachment: fixed;
@@ -81,7 +82,8 @@ html, body {
   backdrop-filter: blur(10px);
 }
 
-.menu-btn:hover, .menu-btn:active {
+.menu-btn:hover,
+.menu-btn:active {
   color: var(--text-primary);
   border-color: var(--border-focus);
 }
@@ -155,6 +157,7 @@ html, body {
     opacity: 0;
     transform: translateY(8px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -168,7 +171,7 @@ html, body {
   top: 0;
   bottom: 0;
   width: 0%;
-  background: linear-gradient(90deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.20) 60%, rgba(99, 102, 241, 0.38) 100%);
+  background: rgba(99, 102, 241, 0.22);
   border-right: 2px solid rgba(129, 140, 248, 0.7);
   pointer-events: none;
   z-index: 0;
@@ -315,7 +318,8 @@ html, body {
   flex-shrink: 0;
 }
 
-.card-delete-btn:hover, .card-delete-btn:active {
+.card-delete-btn:hover,
+.card-delete-btn:active {
   color: #fb7185;
   background: rgba(244, 63, 94, 0.1);
 }
@@ -383,7 +387,7 @@ html, body {
 
 .countdown-card.completed .card-bg-gauge {
   width: 100% !important;
-  background: linear-gradient(90deg, rgba(99, 102, 241, 0.22), rgba(129, 140, 248, 0.35));
+  background: rgba(99, 102, 241, 0.25);
   border-right: none;
 }
 
@@ -480,6 +484,7 @@ html, body {
     opacity: 0;
     transform: translateY(8px) scale(0.9);
   }
+
   to {
     opacity: 1;
     transform: translateY(0) scale(1);
@@ -1007,12 +1012,12 @@ input[type="datetime-local"] {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
-.switch input:checked + .slider {
+.switch input:checked+.slider {
   background: #6366f1;
   box-shadow: 0 0 12px var(--accent-glow);
 }
 
-.switch input:checked + .slider:before {
+.switch input:checked+.slider:before {
   transform: translateX(20px);
 }
 
@@ -1082,6 +1087,7 @@ input[type="datetime-local"] {
     opacity: 0;
     transform: translateY(-6px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
