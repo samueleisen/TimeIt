@@ -1,4 +1,4 @@
-const CACHE_NAME = 'timekeeper-canvas-v11';
+const CACHE_NAME = 'timekeeper-canvas-v12';
 const ASSETS = [
   './',
   './index.html',

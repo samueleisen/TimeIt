@@ -460,16 +460,12 @@
 
           <div class="countdown-units">
             <div class="unit-block">
-              <span class="unit-value days-val">0</span>
-              <span class="unit-label">DAYS</span>
+              <span class="unit-value unit1-val">00</span>
+              <span class="unit-label unit1-lbl">DAYS</span>
             </div>
             <div class="unit-block">
-              <span class="unit-value hours-val">0</span>
-              <span class="unit-label">HOURS</span>
-            </div>
-            <div class="sub-units">
-              <span class="mins-val">00</span>m
-              <span class="secs-val">00</span>s
+              <span class="unit-value unit2-val">00</span>
+              <span class="unit-label unit2-lbl">HOURS</span>
             </div>
           </div>
 
@@ -550,11 +546,10 @@
 
       card.querySelector('.target-time-label').textContent = `Resets: ${formatTargetDate(item.targetTimestamp)}`;
 
-      const daysVal = card.querySelector('.days-val');
-      const hoursVal = card.querySelector('.hours-val');
-      const minsVal = card.querySelector('.mins-val');
-      const secsVal = card.querySelector('.secs-val');
-      const subUnits = card.querySelector('.sub-units');
+      const unit1Val = card.querySelector('.unit1-val');
+      const unit1Lbl = card.querySelector('.unit1-lbl');
+      const unit2Val = card.querySelector('.unit2-val');
+      const unit2Lbl = card.querySelector('.unit2-lbl');
       const statusTag = card.querySelector('.status-tag');
       const resetBtn = card.querySelector('.card-reset-btn');
 
@@ -563,20 +558,31 @@
       if (isCompleted) {
         card.classList.add('completed');
         resetBtn.classList.remove('hidden');
-        daysVal.textContent = '0';
-        hoursVal.textContent = '0';
-        subUnits.innerHTML = '00m 00s';
+        unit1Val.textContent = '00';
+        unit1Lbl.textContent = 'HOURS';
+        unit2Val.textContent = '00';
+        unit2Lbl.textContent = 'MINS';
         statusTag.className = 'status-tag done';
         statusTag.textContent = 'Ready';
       } else {
         card.classList.remove('completed');
         resetBtn.classList.add('hidden');
-        daysVal.textContent = days;
-        hoursVal.textContent = pad(hours);
-        minsVal.textContent = pad(mins);
-        secsVal.textContent = pad(secs);
         statusTag.className = 'status-tag active';
         statusTag.textContent = 'Active';
+
+        if (days >= 1) {
+          // Case 1: >= 1 day left -> Display Days + Hours
+          unit1Val.textContent = pad(days);
+          unit1Lbl.textContent = days === 1 ? 'DAY' : 'DAYS';
+          unit2Val.textContent = pad(hours);
+          unit2Lbl.textContent = hours === 1 ? 'HOUR' : 'HOURS';
+        } else {
+          // Case 2: Under 24 hours (days == 0) -> Display Hours + Minutes
+          unit1Val.textContent = pad(hours);
+          unit1Lbl.textContent = hours === 1 ? 'HOUR' : 'HOURS';
+          unit2Val.textContent = pad(mins);
+          unit2Lbl.textContent = mins === 1 ? 'MIN' : 'MINS';
+        }
       }
     });
 
