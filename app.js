@@ -338,7 +338,14 @@
   // Edit Mode Toggle Listener
   editModeToggle.addEventListener('change', (e) => {
     editMode = e.target.checked;
-    renderCountdowns();
+    document.body.classList.toggle('edit-mode-active', editMode);
+    if (editMode) {
+      stopTicker();
+      renderCountdowns();
+    } else {
+      renderCountdowns();
+      startTicker();
+    }
   });
 
   // Add Countdown Form Submit
@@ -404,23 +411,145 @@
     renderCountdowns();
   }
 
-  // Reorder Countdowns (1-Tap Up / Down in Edit Mode)
-  function moveCountdownUp(id) {
-    const idx = countdowns.findIndex(c => c.id === id);
-    if (idx > 0) {
-      [countdowns[idx - 1], countdowns[idx]] = [countdowns[idx], countdowns[idx - 1]];
-      saveCountdowns();
-      renderCountdowns();
+  // Ticker Management (Pause/Freeze when in Edit Mode)
+  let tickIntervalId = null;
+  let isDraggingCard = false;
+
+  function startTicker() {
+    if (!tickIntervalId) {
+      tickIntervalId = setInterval(() => {
+        if (!editMode && !isDraggingCard) {
+          renderCountdowns();
+        }
+      }, 1000);
     }
   }
 
-  function moveCountdownDown(id) {
-    const idx = countdowns.findIndex(c => c.id === id);
-    if (idx !== -1 && idx < countdowns.length - 1) {
-      [countdowns[idx], countdowns[idx + 1]] = [countdowns[idx + 1], countdowns[idx]];
-      saveCountdowns();
+  function stopTicker() {
+    if (tickIntervalId) {
+      clearInterval(tickIntervalId);
+      tickIntervalId = null;
+    }
+  }
+
+  // Hold-to-Carry Drag & Drop Reordering (500ms hold in Edit Mode)
+  function setupCardDrag(card, item) {
+    const handle = card.querySelector('.countdown-units');
+    if (!handle) return;
+
+    let holdTimer = null;
+    let startY = 0;
+    let initialCardTop = 0;
+    let placeholder = null;
+    let isCurrentDragging = false;
+
+    function onPointerDown(e) {
+      if (!editMode || e.button !== 0) return;
+      startY = e.clientY;
+      isCurrentDragging = false;
+
+      clearTimeout(holdTimer);
+      holdTimer = setTimeout(() => {
+        isCurrentDragging = true;
+        isDraggingCard = true;
+        if (navigator.vibrate) navigator.vibrate(40);
+
+        try {
+          handle.setPointerCapture(e.pointerId);
+        } catch (err) {}
+
+        const rect = card.getBoundingClientRect();
+        initialCardTop = rect.top;
+
+        // Create placeholder in list
+        placeholder = document.createElement('div');
+        placeholder.className = 'countdown-card drag-placeholder';
+        placeholder.style.height = `${rect.height}px`;
+        placeholder.style.minHeight = `${rect.height}px`;
+        card.parentNode.insertBefore(placeholder, card);
+
+        // Make card floating
+        card.classList.add('is-dragging');
+        card.style.position = 'fixed';
+        card.style.top = `${rect.top}px`;
+        card.style.left = `${rect.left}px`;
+        card.style.width = `${rect.width}px`;
+        card.style.zIndex = '1000';
+      }, 500);
+    }
+
+    function onPointerMove(e) {
+      if (!isCurrentDragging) {
+        if (Math.abs(e.clientY - startY) > 8) {
+          clearTimeout(holdTimer);
+        }
+        return;
+      }
+
+      e.preventDefault();
+      const currentY = e.clientY;
+      const deltaY = currentY - startY;
+      card.style.top = `${initialCardTop + deltaY}px`;
+
+      // Find sibling under pointer
+      const cards = Array.from(countdownList.querySelectorAll('.countdown-card:not(.is-dragging):not(.drag-placeholder)'));
+      for (const sibling of cards) {
+        const siblingRect = sibling.getBoundingClientRect();
+        const siblingMidY = siblingRect.top + siblingRect.height / 2;
+
+        if (currentY < siblingMidY && placeholder.compareDocumentPosition(sibling) & Node.DOCUMENT_POSITION_FOLLOWING) {
+          countdownList.insertBefore(placeholder, sibling);
+          break;
+        } else if (currentY > siblingMidY && placeholder.compareDocumentPosition(sibling) & Node.DOCUMENT_POSITION_PRECEDING) {
+          countdownList.insertBefore(placeholder, sibling.nextSibling);
+          break;
+        }
+      }
+    }
+
+    function onPointerUp(e) {
+      clearTimeout(holdTimer);
+      if (!isCurrentDragging) return;
+
+      isCurrentDragging = false;
+      isDraggingCard = false;
+      if (navigator.vibrate) navigator.vibrate(20);
+
+      try {
+        handle.releasePointerCapture(e.pointerId);
+      } catch (err) {}
+
+      // Calculate new index based on placeholder position
+      if (placeholder && placeholder.parentNode) {
+        const children = Array.from(countdownList.children).filter(el => el.classList.contains('countdown-card') && el !== card);
+        const newIndex = children.indexOf(placeholder);
+        const oldIndex = countdowns.findIndex(c => c.id === item.id);
+
+        if (oldIndex !== -1 && newIndex !== -1 && oldIndex !== newIndex) {
+          const [movedItem] = countdowns.splice(oldIndex, 1);
+          countdowns.splice(newIndex, 0, movedItem);
+          saveCountdowns();
+        }
+
+        placeholder.remove();
+        placeholder = null;
+      }
+
+      // Reset card styles
+      card.classList.remove('is-dragging');
+      card.style.position = '';
+      card.style.top = '';
+      card.style.left = '';
+      card.style.width = '';
+      card.style.zIndex = '';
+
       renderCountdowns();
     }
+
+    handle.addEventListener('pointerdown', onPointerDown);
+    handle.addEventListener('pointermove', onPointerMove);
+    handle.addEventListener('pointerup', onPointerUp);
+    handle.addEventListener('pointercancel', onPointerUp);
   }
 
   // Render & Update Countdowns
@@ -438,7 +567,7 @@
       existingCards.set(card.dataset.id, card);
     });
 
-    countdowns.forEach((item, index) => {
+    countdowns.forEach((item) => {
       const remainingMs = item.targetTimestamp - now;
       const isCompleted = remainingMs <= 0;
 
@@ -463,7 +592,7 @@
           <div class="card-content">
             <h3 class="card-title"></h3>
             <div class="card-actions">
-              <div class="countdown-units">
+              <div class="countdown-units" title="Hold 0.5s in Edit Mode to reorder">
                 <div class="unit-block">
                   <span class="unit-value unit1-val">00</span>
                   <span class="unit-label unit1-lbl">D</span>
@@ -472,18 +601,6 @@
                   <span class="unit-value unit2-val">00</span>
                   <span class="unit-label unit2-lbl">H</span>
                 </div>
-              </div>
-              <div class="card-reorder-group hidden">
-                <button class="card-reorder-btn card-move-up-btn" title="Move Up" aria-label="Move Up">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="18 15 12 9 6 15"></polyline>
-                  </svg>
-                </button>
-                <button class="card-reorder-btn card-move-down-btn" title="Move Down" aria-label="Move Down">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="6 9 12 15 18 9"></polyline>
-                  </svg>
-                </button>
               </div>
               <button class="card-delete-btn hidden" title="Delete" aria-label="Delete">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -528,21 +645,12 @@
           });
         }
 
-        card.querySelector('.card-move-up-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          moveCountdownUp(item.id);
-        });
-
-        card.querySelector('.card-move-down-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          moveCountdownDown(item.id);
-        });
-
         card.querySelector('.card-delete-btn').addEventListener('click', (e) => {
           e.stopPropagation();
           deleteCountdown(item.id);
         });
 
+        setupCardDrag(card, item);
         countdownList.appendChild(card);
       } else {
         existingCards.delete(item.id);
@@ -555,24 +663,13 @@
         titleEl.textContent = item.title;
       }
 
-      // Edit Mode Behavior: Toggle contenteditable, reorder buttons & delete button
+      // Edit Mode Behavior: Toggle contenteditable & delete button
       if (editMode) {
         titleEl.contentEditable = 'true';
         titleEl.title = 'Click to rename';
       } else {
         titleEl.contentEditable = 'false';
         titleEl.removeAttribute('title');
-      }
-
-      const reorderGroup = card.querySelector('.card-reorder-group');
-      const moveUpBtn = card.querySelector('.card-move-up-btn');
-      const moveDownBtn = card.querySelector('.card-move-down-btn');
-      if (editMode) {
-        if (reorderGroup) reorderGroup.classList.remove('hidden');
-        if (moveUpBtn) moveUpBtn.disabled = (index === 0);
-        if (moveDownBtn) moveDownBtn.disabled = (index === countdowns.length - 1);
-      } else {
-        if (reorderGroup) reorderGroup.classList.add('hidden');
       }
 
       const deleteBtn = card.querySelector('.card-delete-btn');
@@ -650,18 +747,18 @@
     existingCards.forEach(card => card.remove());
   }
 
-  // Real-time ticking loop
-  setInterval(renderCountdowns, 1000);
-
   // Instant re-sync on mobile unlock
   document.addEventListener('visibilitychange', () => {
-    if (!document.hidden) renderCountdowns();
+    if (!document.hidden && !editMode) renderCountdowns();
   });
-  window.addEventListener('focus', renderCountdowns);
+  window.addEventListener('focus', () => {
+    if (!editMode) renderCountdowns();
+  });
 
-  // Initial render
+  // Initial render & start ticking
   renderAllShortcuts();
   renderCountdowns();
+  startTicker();
 
   // Service Worker for 100% Offline PWA
   if ('serviceWorker' in navigator) {
