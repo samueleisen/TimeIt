@@ -46,11 +46,73 @@
   const sidebarAddShortcutBtn = document.getElementById('sidebarAddShortcutBtn');
   const restoreDefaultsBtn = document.getElementById('restoreDefaultsBtn');
   const editModeToggle = document.getElementById('editModeToggle');
+  const colorPickerRow = document.getElementById('colorPickerRow');
+  const customColorBtn = document.getElementById('customColorBtn');
+  const customColorInput = document.getElementById('customColorInput');
 
   // State
   let editMode = false;
   let currentModalMode = 'custom'; // 'shortcut' | 'custom'
   let currentSelectedShortcut = null;
+  let selectedGaugeColor = '#6366f1';
+
+  // Helper: Hex color to RGBA
+  function hexToRgba(hex, alpha) {
+    if (!hex || typeof hex !== 'string') return `rgba(99, 102, 241, ${alpha})`;
+    let c = hex.replace('#', '');
+    if (c.length === 3) c = c.split('').map(x => x + x).join('');
+    if (c.length !== 6) return `rgba(99, 102, 241, ${alpha})`;
+    const num = parseInt(c, 16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  // Color Picker Setup in Modal
+  if (colorPickerRow) {
+    colorPickerRow.querySelectorAll('.color-dot').forEach(dot => {
+      dot.addEventListener('click', () => {
+        colorPickerRow.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+        if (customColorBtn) {
+          customColorBtn.classList.remove('active');
+          customColorBtn.style.background = '';
+        }
+        dot.classList.add('active');
+        selectedGaugeColor = dot.dataset.color;
+      });
+    });
+  }
+
+  if (customColorInput) {
+    customColorInput.addEventListener('input', (e) => {
+      selectedGaugeColor = e.target.value;
+      if (colorPickerRow) {
+        colorPickerRow.querySelectorAll('.color-dot').forEach(d => d.classList.remove('active'));
+      }
+      if (customColorBtn) {
+        customColorBtn.classList.add('active');
+        customColorBtn.style.background = selectedGaugeColor;
+      }
+    });
+  }
+
+  function resetColorPickerUI() {
+    selectedGaugeColor = '#6366f1';
+    if (colorPickerRow) {
+      colorPickerRow.querySelectorAll('.color-dot').forEach(d => {
+        if (d.dataset.color === '#6366f1') d.classList.add('active');
+        else d.classList.remove('active');
+      });
+    }
+    if (customColorBtn) {
+      customColorBtn.classList.remove('active');
+      customColorBtn.style.background = '';
+    }
+    if (customColorInput) {
+      customColorInput.value = '#6366f1';
+    }
+  }
 
   // Load from LocalStorage
   function loadCountdowns() {
@@ -268,6 +330,7 @@
     eventTitleInput.value = '';
     eventTitleInput.placeholder = `${shortcut.label.replace('+', '')} Quota / Activity`;
     startCountdownBtn.textContent = `Start ${shortcut.label} Countdown`;
+    resetColorPickerUI();
 
     sheetBackdrop.classList.remove('hidden');
     setTimeout(() => eventTitleInput.focus(), 150);
@@ -288,6 +351,7 @@
     eventTitleInput.value = '';
     eventTitleInput.placeholder = 'e.g. Project Launch, Trip to Tokyo';
     startCountdownBtn.textContent = 'Start Countdown';
+    resetColorPickerUI();
 
     sheetBackdrop.classList.remove('hidden');
     setTimeout(() => eventTitleInput.focus(), 150);
@@ -296,6 +360,7 @@
   function closeSheet() {
     sheetBackdrop.classList.add('hidden');
     addCountdownForm.reset();
+    resetColorPickerUI();
   }
 
   closeSheetBtn.addEventListener('click', closeSheet);
@@ -377,6 +442,7 @@
       title: title,
       targetTimestamp: targetTimestamp,
       initialDurationMs: initialDurationMs,
+      color: selectedGaugeColor || '#6366f1',
       createdAt: Date.now()
     };
 
@@ -569,9 +635,17 @@
         const elapsed = totalDuration - remainingMs;
         progressPercent = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
       }
+      const cardColor = item.color || '#6366f1';
       const bgGauge = card.querySelector('.card-bg-gauge');
       if (bgGauge) {
         bgGauge.style.width = `${progressPercent.toFixed(2)}%`;
+        if (isCompleted) {
+          bgGauge.style.background = `linear-gradient(90deg, ${hexToRgba(cardColor, 0.22)}, ${hexToRgba(cardColor, 0.38)})`;
+          bgGauge.style.borderRight = 'none';
+        } else {
+          bgGauge.style.background = `linear-gradient(90deg, ${hexToRgba(cardColor, 0.12)}, ${hexToRgba(cardColor, 0.26)})`;
+          bgGauge.style.borderRight = `1px solid ${hexToRgba(cardColor, 0.35)}`;
+        }
       }
 
       const unit1Val = card.querySelector('.unit1-val');
@@ -584,6 +658,8 @@
 
       if (isCompleted) {
         card.classList.add('completed');
+        card.style.borderColor = hexToRgba(cardColor, 0.45);
+        card.style.boxShadow = `0 0 16px ${hexToRgba(cardColor, 0.18)}`;
         if (resetOverlay) {
           if (editMode) {
             resetOverlay.classList.add('hidden');
@@ -597,6 +673,8 @@
         unit2Lbl.textContent = 'M';
       } else {
         card.classList.remove('completed');
+        card.style.borderColor = '';
+        card.style.boxShadow = '';
         if (resetOverlay) resetOverlay.classList.add('hidden');
 
         if (days >= 1) {
