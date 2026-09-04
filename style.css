@@ -334,12 +334,29 @@ html, body {
   color: #a5b4fc;
 }
 
+/* Progressive Loading Bar (Thin static white filling line) */
+.card-progress-track {
+  width: 100%;
+  height: 2px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+  position: relative;
+}
+
+.card-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: #ffffff;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+
 .target-badge {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 0.35rem;
-  border-top: 1px solid var(--border-subtle);
+  padding-top: 0.15rem;
   font-size: 0.72rem;
   color: var(--text-muted);
 }

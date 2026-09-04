@@ -462,6 +462,10 @@
             </div>
           </div>
 
+          <div class="card-progress-track">
+            <div class="card-progress-bar"></div>
+          </div>
+
           <div class="target-badge">
             <span class="target-time-label"></span>
             <span class="status-tag"></span>
@@ -543,6 +547,20 @@
       }
 
       card.querySelector('.target-time-label').textContent = `Resets: ${formatTargetDate(item.targetTimestamp)}`;
+
+      // Progressive Loading Bar Calculation (Filling: 0% -> 100%)
+      const totalDuration = item.initialDurationMs || (item.targetTimestamp - item.createdAt) || 1;
+      let progressPercent = 0;
+      if (isCompleted) {
+        progressPercent = 100;
+      } else {
+        const elapsed = totalDuration - remainingMs;
+        progressPercent = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+      }
+      const progressBar = card.querySelector('.card-progress-bar');
+      if (progressBar) {
+        progressBar.style.width = `${progressPercent.toFixed(2)}%`;
+      }
 
       const unit1Val = card.querySelector('.unit1-val');
       const unit1Lbl = card.querySelector('.unit1-lbl');
