@@ -644,7 +644,7 @@
           bgGauge.style.borderRight = 'none';
           bgGauge.style.boxShadow = 'none';
         } else {
-          bgGauge.style.background = `linear-gradient(90deg, ${hexToRgba(cardColor, 0.02)} 0%, ${hexToRgba(cardColor, 0.12)} 60%, ${hexToRgba(cardColor, 0.35)} 100%)`;
+          bgGauge.style.background = `linear-gradient(90deg, ${hexToRgba(cardColor, 0.08)} 0%, ${hexToRgba(cardColor, 0.20)} 60%, ${hexToRgba(cardColor, 0.38)} 100%)`;
           bgGauge.style.borderRight = `2px solid ${hexToRgba(cardColor, 0.7)}`;
           bgGauge.style.boxShadow = `inset -4px 0 10px ${hexToRgba(cardColor, 0.25)}`;
         }

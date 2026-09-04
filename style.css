@@ -168,7 +168,7 @@ html, body {
   top: 0;
   bottom: 0;
   width: 0%;
-  background: linear-gradient(90deg, rgba(99, 102, 241, 0.02) 0%, rgba(99, 102, 241, 0.12) 60%, rgba(99, 102, 241, 0.35) 100%);
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.20) 60%, rgba(99, 102, 241, 0.38) 100%);
   border-right: 2px solid rgba(129, 140, 248, 0.7);
   pointer-events: none;
   z-index: 0;
