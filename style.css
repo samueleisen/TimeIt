@@ -287,48 +287,26 @@ html, body {
   display: flex;
   align-items: baseline;
   gap: 0.45rem;
+  transition: opacity 0.15s ease;
 }
 
-/* Drag & Drop Reorder Styles in Edit Mode */
-body.is-edit-mode .countdown-units {
+/* Edit Mode Drag Handle on Right Side */
+.edit-mode .countdown-units {
   cursor: grab;
-  touch-action: pan-y;
+  touch-action: none;
   user-select: none;
   -webkit-user-select: none;
 }
 
-body.is-edit-mode .countdown-units:active {
+.edit-mode .countdown-units:active {
   cursor: grabbing;
-}
-
-.countdown-card.is-dragging {
-  position: relative;
-  z-index: 100 !important;
-  transform: scale(1.025);
-  border-color: rgba(99, 102, 241, 0.7) !important;
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.5), 0 0 16px rgba(99, 102, 241, 0.35) !important;
-  opacity: 0.95;
-  transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-.card-drop-placeholder {
-  height: 48px;
-  border: 1.5px dashed rgba(99, 102, 241, 0.45);
-  border-radius: var(--radius-md);
-  background: rgba(99, 102, 241, 0.05);
-  box-sizing: border-box;
-  animation: fadeInPlaceholder 0.15s ease-out;
-}
-
-@keyframes fadeInPlaceholder {
-  from { opacity: 0; transform: scale(0.98); }
-  to { opacity: 1; transform: scale(1); }
 }
 
 .unit-block {
   display: flex;
   align-items: baseline;
   gap: 0.2rem;
+  pointer-events: none;
 }
 
 .unit-value {
@@ -346,6 +324,18 @@ body.is-edit-mode .countdown-units:active {
   color: var(--text-secondary);
   letter-spacing: 0.04em;
   text-transform: uppercase;
+}
+
+/* Card Dragging State (Hold-to-Carry) */
+.countdown-card.is-dragging {
+  z-index: 100 !important;
+  opacity: 0.92;
+  transform: scale(1.03);
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.35);
+  border-color: rgba(99, 102, 241, 0.65) !important;
+  cursor: grabbing;
+  pointer-events: none;
+  transition: transform 0.05s linear, box-shadow 0.2s ease !important;
 }
 
 /* Full-Card Reset Overlay Button for 0-time Timers */
