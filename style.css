@@ -325,6 +325,9 @@ html, body {
   display: flex;
   align-items: baseline;
   gap: 0.45rem;
+  user-select: none;
+  -webkit-user-select: none;
+  pointer-events: none;
 }
 
 .unit-block {

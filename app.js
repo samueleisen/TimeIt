@@ -56,7 +56,10 @@
   function loadCountdowns() {
     try {
       const data = localStorage.getItem(COUNTDOWNS_KEY);
-      return data ? JSON.parse(data) : [];
+      if (!data) return [];
+      const parsed = JSON.parse(data);
+      if (!Array.isArray(parsed)) return [];
+      return parsed.filter(item => item && item.id && typeof item.targetTimestamp === 'number');
     } catch (e) {
       console.error('Failed to load countdowns', e);
       return [];
@@ -528,13 +531,17 @@
       if (editMode) {
         titleEl.contentEditable = 'true';
         titleEl.title = 'Click to rename';
-        if (dragHandle) dragHandle.classList.remove('hidden');
-        card.setAttribute('draggable', 'true');
+        if (dragHandle) {
+          dragHandle.classList.remove('hidden');
+          dragHandle.setAttribute('draggable', 'true');
+        }
       } else {
         titleEl.contentEditable = 'false';
         titleEl.removeAttribute('title');
-        if (dragHandle) dragHandle.classList.add('hidden');
-        card.removeAttribute('draggable');
+        if (dragHandle) {
+          dragHandle.classList.add('hidden');
+          dragHandle.removeAttribute('draggable');
+        }
       }
 
       const deleteBtn = card.querySelector('.card-delete-btn');
@@ -612,17 +619,43 @@
     existingCards.forEach(card => card.remove());
   }
 
-  // Drag and Drop Engine (Desktop Drag & Mobile Touch Reordering)
+  // Drag and Drop Engine (Strictly Handle-Triggered Desktop Drag & Mobile Touch)
   let draggedCard = null;
+  let activeTouchCard = null;
+
+  function clearDragState() {
+    if (draggedCard) {
+      draggedCard.classList.remove('dragging');
+      draggedCard = null;
+    }
+    if (activeTouchCard) {
+      activeTouchCard.classList.remove('dragging');
+      activeTouchCard = null;
+    }
+    countdownList.querySelectorAll('.countdown-card.dragging').forEach(card => {
+      card.classList.remove('dragging');
+    });
+  }
 
   function initDragAndDrop() {
+    // Desktop Drag: Only trigger when dragging directly from the drag handle
     countdownList.addEventListener('dragstart', (e) => {
       if (!editMode) {
         e.preventDefault();
         return;
       }
-      const card = e.target.closest('.countdown-card');
-      if (!card) return;
+      const handle = e.target.closest('.card-drag-handle');
+      if (!handle) {
+        // Prevent accidental dragging on clock, title, or rest of card
+        e.preventDefault();
+        return;
+      }
+      const card = handle.closest('.countdown-card');
+      if (!card) {
+        e.preventDefault();
+        return;
+      }
+
       draggedCard = card;
 
       if (e.dataTransfer) {
@@ -636,11 +669,8 @@
       }, 0);
     });
 
-    countdownList.addEventListener('dragend', (e) => {
-      const card = e.target.closest('.countdown-card');
-      if (card) card.classList.remove('dragging');
-      if (draggedCard) draggedCard.classList.remove('dragging');
-      draggedCard = null;
+    countdownList.addEventListener('dragend', () => {
+      clearDragState();
       persistCardOrder();
     });
 
@@ -659,9 +689,7 @@
       }
     });
 
-    // Touch Support for Mobile Dragging via Drag Handle
-    let activeTouchCard = null;
-
+    // Mobile Touch: Only trigger when touching the drag handle
     countdownList.addEventListener('touchstart', (e) => {
       if (!editMode) return;
       const handle = e.target.closest('.card-drag-handle');
@@ -690,14 +718,20 @@
 
     const handleTouchEnd = () => {
       if (activeTouchCard) {
-        activeTouchCard.classList.remove('dragging');
-        activeTouchCard = null;
+        clearDragState();
         persistCardOrder();
       }
     };
 
     countdownList.addEventListener('touchend', handleTouchEnd);
     countdownList.addEventListener('touchcancel', handleTouchEnd);
+
+    // Global drag state safety resets
+    window.addEventListener('mouseup', clearDragState);
+    window.addEventListener('blur', clearDragState);
+    document.addEventListener('visibilitychange', () => {
+      if (document.hidden) clearDragState();
+    });
   }
 
   function getDragAfterElement(container, y) {
@@ -716,15 +750,20 @@
 
   function persistCardOrder() {
     const currentCardElements = countdownList.querySelectorAll('.countdown-card');
-    const newOrderIds = Array.from(currentCardElements).map(card => card.dataset.id);
+    const newOrderIds = Array.from(currentCardElements).map(card => card.dataset.id).filter(Boolean);
+    if (newOrderIds.length === 0) return;
 
-    // Reorder countdowns array according to DOM order
-    countdowns.sort((a, b) => {
-      const idxA = newOrderIds.indexOf(a.id);
-      const idxB = newOrderIds.indexOf(b.id);
-      return (idxA === -1 ? 999 : idxA) - (idxB === -1 ? 999 : idxB);
+    const ordered = [];
+    newOrderIds.forEach(id => {
+      const item = countdowns.find(c => c.id === id);
+      if (item) ordered.push(item);
     });
 
+    countdowns.forEach(item => {
+      if (!ordered.includes(item)) ordered.push(item);
+    });
+
+    countdowns = ordered;
     saveCountdowns();
   }
 
