@@ -51,6 +51,9 @@
   let editMode = false;
   let currentModalMode = 'custom'; // 'shortcut' | 'custom'
   let currentSelectedShortcut = null;
+  let isDragging = false;
+  let activeDragCard = null;
+  let activePointerId = null;
 
   // Load from LocalStorage
   function loadCountdowns() {
@@ -338,6 +341,7 @@
   // Edit Mode Toggle Listener
   editModeToggle.addEventListener('change', (e) => {
     editMode = e.target.checked;
+    document.body.classList.toggle('edit-mode-active', editMode);
     renderCountdowns();
   });
 
@@ -406,6 +410,7 @@
 
   // Render & Update Countdowns
   function renderCountdowns() {
+    if (isDragging) return; // Prevent DOM mutations while actively dragging
     const now = Date.now();
 
     if (countdowns.length === 0) {
@@ -502,6 +507,10 @@
           deleteCountdown(item.id);
         });
 
+        // Attach drag-and-drop listener to clock units on right
+        const unitsEl = card.querySelector('.countdown-units');
+        attachCardDragHandle(card, unitsEl);
+
         countdownList.appendChild(card);
       } else {
         existingCards.delete(item.id);
@@ -595,6 +604,120 @@
 
     // Remove obsolete cards
     existingCards.forEach(card => card.remove());
+  }
+
+  // Drag-and-Drop Card Reordering (500ms hold on clock in Edit Mode)
+  function attachCardDragHandle(card, unitsEl) {
+    let startX = 0;
+    let startY = 0;
+    let holdTimer = null;
+
+    unitsEl.addEventListener('pointerdown', (e) => {
+      if (!editMode) return;
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+      startX = e.clientX;
+      startY = e.clientY;
+      const currentPointerId = e.pointerId;
+
+      holdTimer = setTimeout(() => {
+        startDraggingCard(card, startY, currentPointerId);
+      }, 500);
+
+      function onPointerMoveCheck(moveEvent) {
+        if (moveEvent.pointerId !== currentPointerId) return;
+        const dx = Math.abs(moveEvent.clientX - startX);
+        const dy = Math.abs(moveEvent.clientY - startY);
+        // If moved > 8px before 500ms, it is a scroll attempt -> cancel hold
+        if (dx > 8 || dy > 8) {
+          clearTimeout(holdTimer);
+          cleanupCheck();
+        }
+      }
+
+      function onPointerUpCheck(upEvent) {
+        if (upEvent.pointerId !== currentPointerId) return;
+        clearTimeout(holdTimer);
+        cleanupCheck();
+      }
+
+      function cleanupCheck() {
+        window.removeEventListener('pointermove', onPointerMoveCheck);
+        window.removeEventListener('pointerup', onPointerUpCheck);
+        window.removeEventListener('pointercancel', onPointerUpCheck);
+      }
+
+      window.addEventListener('pointermove', onPointerMoveCheck);
+      window.addEventListener('pointerup', onPointerUpCheck);
+      window.addEventListener('pointercancel', onPointerUpCheck);
+    });
+  }
+
+  function startDraggingCard(card, initialClientY, currentPointerId) {
+    isDragging = true;
+    activeDragCard = card;
+    activePointerId = currentPointerId;
+
+    if (navigator.vibrate) {
+      try { navigator.vibrate(40); } catch (err) {}
+    }
+
+    card.classList.add('dragging');
+
+    let startY = initialClientY;
+
+    function onDragMove(e) {
+      if (e.pointerId !== activePointerId) return;
+      e.preventDefault();
+
+      const dy = e.clientY - startY;
+      card.style.transform = `translateY(${dy}px) scale(1.03)`;
+
+      const cardRect = card.getBoundingClientRect();
+      const cardCenterY = cardRect.top + cardRect.height / 2;
+      const siblings = Array.from(countdownList.querySelectorAll('.countdown-card:not(.dragging)'));
+
+      for (const sibling of siblings) {
+        const siblingRect = sibling.getBoundingClientRect();
+        const siblingCenterY = siblingRect.top + siblingRect.height / 2;
+
+        if (dy > 0 && cardCenterY > siblingCenterY && card.nextElementSibling === sibling) {
+          countdownList.insertBefore(card, sibling.nextElementSibling);
+          startY = e.clientY;
+          card.style.transform = `translateY(0px) scale(1.03)`;
+          break;
+        } else if (dy < 0 && cardCenterY < siblingCenterY && card.previousElementSibling === sibling) {
+          countdownList.insertBefore(card, sibling);
+          startY = e.clientY;
+          card.style.transform = `translateY(0px) scale(1.03)`;
+          break;
+        }
+      }
+    }
+
+    function onDragEnd(e) {
+      if (e.pointerId !== activePointerId) return;
+      window.removeEventListener('pointermove', onDragMove);
+      window.removeEventListener('pointerup', onDragEnd);
+      window.removeEventListener('pointercancel', onDragEnd);
+
+      card.classList.remove('dragging');
+      card.style.transform = '';
+
+      const newOrderIds = Array.from(countdownList.querySelectorAll('.countdown-card')).map(c => c.dataset.id);
+      countdowns.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
+      saveCountdowns();
+
+      isDragging = false;
+      activeDragCard = null;
+      activePointerId = null;
+
+      renderCountdowns();
+    }
+
+    window.addEventListener('pointermove', onDragMove, { passive: false });
+    window.addEventListener('pointerup', onDragEnd);
+    window.addEventListener('pointercancel', onDragEnd);
   }
 
   // Real-time ticking loop
