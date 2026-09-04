@@ -51,9 +51,6 @@
   let editMode = false;
   let currentModalMode = 'custom'; // 'shortcut' | 'custom'
   let currentSelectedShortcut = null;
-  let isDragging = false;
-  let activeDragCard = null;
-  let activePointerId = null;
 
   // Load from LocalStorage
   function loadCountdowns() {
@@ -341,9 +338,155 @@
   // Edit Mode Toggle Listener
   editModeToggle.addEventListener('change', (e) => {
     editMode = e.target.checked;
-    document.body.classList.toggle('edit-mode-active', editMode);
+    document.body.classList.toggle('is-edit-mode', editMode);
     renderCountdowns();
   });
+
+  // --- Drag & Drop Reorder Controller (500ms Hold in Edit Mode) ---
+  let isDraggingCard = false;
+  let activeDragCard = null;
+  let dragPlaceholder = null;
+  let holdTimer = null;
+  let dragPointerId = null;
+
+  function cancelHoldTimer() {
+    if (holdTimer) {
+      clearTimeout(holdTimer);
+      holdTimer = null;
+    }
+  }
+
+  function setupCardDragListeners(card) {
+    const handle = card.querySelector('.countdown-units');
+    if (!handle) return;
+
+    let startX = 0;
+    let startY = 0;
+
+    handle.addEventListener('pointerdown', (e) => {
+      if (!editMode || isDraggingCard) return;
+      if (e.button !== 0 && e.pointerType === 'mouse') return;
+
+      startX = e.clientX;
+      startY = e.clientY;
+      dragPointerId = e.pointerId;
+
+      cancelHoldTimer();
+      holdTimer = setTimeout(() => {
+        startCardDrag(card, e);
+      }, 500);
+    });
+
+    handle.addEventListener('pointermove', (e) => {
+      if (holdTimer && !isDraggingCard) {
+        const dx = e.clientX - startX;
+        const dy = e.clientY - startY;
+        if (Math.hypot(dx, dy) > 8) {
+          cancelHoldTimer();
+        }
+      }
+    });
+
+    handle.addEventListener('pointerup', cancelHoldTimer);
+    handle.addEventListener('pointercancel', cancelHoldTimer);
+  }
+
+  function startCardDrag(card, e) {
+    cancelHoldTimer();
+    if (!editMode || isDraggingCard) return;
+
+    isDraggingCard = true;
+    activeDragCard = card;
+
+    // Mobile haptic vibration feedback
+    if (navigator.vibrate) {
+      try { navigator.vibrate(40); } catch (_) {}
+    }
+
+    // Capture pointer
+    try {
+      card.querySelector('.countdown-units')?.setPointerCapture(e.pointerId);
+    } catch (_) {}
+
+    // Create and insert placeholder
+    dragPlaceholder = document.createElement('div');
+    dragPlaceholder.className = 'card-drop-placeholder';
+    countdownList.insertBefore(dragPlaceholder, card);
+
+    // Style active drag card
+    card.classList.add('is-dragging');
+
+    // Attach document-level move & drop listeners
+    window.addEventListener('pointermove', onCardPointerMove, { passive: false });
+    window.addEventListener('pointerup', onCardPointerUp);
+    window.addEventListener('pointercancel', onCardPointerUp);
+  }
+
+  function onCardPointerMove(e) {
+    if (!isDraggingCard || !activeDragCard || !dragPlaceholder) return;
+    e.preventDefault();
+
+    const clientY = e.clientY;
+
+    // Find sibling cards in countdownList
+    const cards = Array.from(countdownList.querySelectorAll('.countdown-card:not(.is-dragging)'));
+    let inserted = false;
+
+    for (const sibling of cards) {
+      const rect = sibling.getBoundingClientRect();
+      const midY = rect.top + rect.height / 2;
+      if (clientY < midY) {
+        countdownList.insertBefore(dragPlaceholder, sibling);
+        inserted = true;
+        break;
+      }
+    }
+
+    if (!inserted) {
+      countdownList.appendChild(dragPlaceholder);
+    }
+  }
+
+  function onCardPointerUp(e) {
+    if (!isDraggingCard || !activeDragCard) {
+      cancelHoldTimer();
+      return;
+    }
+
+    window.removeEventListener('pointermove', onCardPointerMove);
+    window.removeEventListener('pointerup', onCardPointerUp);
+    window.removeEventListener('pointercancel', onCardPointerUp);
+
+    // Release pointer capture
+    if (dragPointerId !== null) {
+      try {
+        activeDragCard.querySelector('.countdown-units')?.releasePointerCapture(dragPointerId);
+      } catch (_) {}
+      dragPointerId = null;
+    }
+
+    // Replace placeholder with activeDragCard in the DOM
+    if (dragPlaceholder && dragPlaceholder.parentNode) {
+      countdownList.insertBefore(activeDragCard, dragPlaceholder);
+      dragPlaceholder.remove();
+      dragPlaceholder = null;
+    }
+
+    activeDragCard.classList.remove('is-dragging');
+
+    // Update countdowns array order based on new DOM order
+    const orderedIds = Array.from(countdownList.querySelectorAll('.countdown-card')).map(c => c.dataset.id);
+    countdowns.sort((a, b) => orderedIds.indexOf(a.id) - orderedIds.indexOf(b.id));
+    saveCountdowns();
+
+    // Subtle drop haptic
+    if (navigator.vibrate) {
+      try { navigator.vibrate(25); } catch (_) {}
+    }
+
+    activeDragCard = null;
+    isDraggingCard = false;
+  }
 
   // Add Countdown Form Submit
   addCountdownForm.addEventListener('submit', (e) => {
@@ -410,7 +553,8 @@
 
   // Render & Update Countdowns
   function renderCountdowns() {
-    if (isDragging) return; // Prevent DOM mutations while actively dragging
+    if (isDraggingCard) return;
+
     const now = Date.now();
 
     if (countdowns.length === 0) {
@@ -471,6 +615,8 @@
           <button class="card-reset-overlay hidden" type="button" title="Click to reset timer" aria-label="Reset countdown"></button>
         `;
 
+        setupCardDragListeners(card);
+
         const cardTitleEl = card.querySelector('.card-title');
         cardTitleEl.addEventListener('blur', () => {
           const currentItem = countdowns.find(c => c.id === card.dataset.id);
@@ -506,10 +652,6 @@
           e.stopPropagation();
           deleteCountdown(item.id);
         });
-
-        // Attach drag-and-drop listener to clock units on right
-        const unitsEl = card.querySelector('.countdown-units');
-        attachCardDragHandle(card, unitsEl);
 
         countdownList.appendChild(card);
       } else {
@@ -604,120 +746,6 @@
 
     // Remove obsolete cards
     existingCards.forEach(card => card.remove());
-  }
-
-  // Drag-and-Drop Card Reordering (500ms hold on clock in Edit Mode)
-  function attachCardDragHandle(card, unitsEl) {
-    let startX = 0;
-    let startY = 0;
-    let holdTimer = null;
-
-    unitsEl.addEventListener('pointerdown', (e) => {
-      if (!editMode) return;
-      if (e.button !== 0 && e.pointerType === 'mouse') return;
-
-      startX = e.clientX;
-      startY = e.clientY;
-      const currentPointerId = e.pointerId;
-
-      holdTimer = setTimeout(() => {
-        startDraggingCard(card, startY, currentPointerId);
-      }, 500);
-
-      function onPointerMoveCheck(moveEvent) {
-        if (moveEvent.pointerId !== currentPointerId) return;
-        const dx = Math.abs(moveEvent.clientX - startX);
-        const dy = Math.abs(moveEvent.clientY - startY);
-        // If moved > 8px before 500ms, it is a scroll attempt -> cancel hold
-        if (dx > 8 || dy > 8) {
-          clearTimeout(holdTimer);
-          cleanupCheck();
-        }
-      }
-
-      function onPointerUpCheck(upEvent) {
-        if (upEvent.pointerId !== currentPointerId) return;
-        clearTimeout(holdTimer);
-        cleanupCheck();
-      }
-
-      function cleanupCheck() {
-        window.removeEventListener('pointermove', onPointerMoveCheck);
-        window.removeEventListener('pointerup', onPointerUpCheck);
-        window.removeEventListener('pointercancel', onPointerUpCheck);
-      }
-
-      window.addEventListener('pointermove', onPointerMoveCheck);
-      window.addEventListener('pointerup', onPointerUpCheck);
-      window.addEventListener('pointercancel', onPointerUpCheck);
-    });
-  }
-
-  function startDraggingCard(card, initialClientY, currentPointerId) {
-    isDragging = true;
-    activeDragCard = card;
-    activePointerId = currentPointerId;
-
-    if (navigator.vibrate) {
-      try { navigator.vibrate(40); } catch (err) {}
-    }
-
-    card.classList.add('dragging');
-
-    let startY = initialClientY;
-
-    function onDragMove(e) {
-      if (e.pointerId !== activePointerId) return;
-      e.preventDefault();
-
-      const dy = e.clientY - startY;
-      card.style.transform = `translateY(${dy}px) scale(1.03)`;
-
-      const cardRect = card.getBoundingClientRect();
-      const cardCenterY = cardRect.top + cardRect.height / 2;
-      const siblings = Array.from(countdownList.querySelectorAll('.countdown-card:not(.dragging)'));
-
-      for (const sibling of siblings) {
-        const siblingRect = sibling.getBoundingClientRect();
-        const siblingCenterY = siblingRect.top + siblingRect.height / 2;
-
-        if (dy > 0 && cardCenterY > siblingCenterY && card.nextElementSibling === sibling) {
-          countdownList.insertBefore(card, sibling.nextElementSibling);
-          startY = e.clientY;
-          card.style.transform = `translateY(0px) scale(1.03)`;
-          break;
-        } else if (dy < 0 && cardCenterY < siblingCenterY && card.previousElementSibling === sibling) {
-          countdownList.insertBefore(card, sibling);
-          startY = e.clientY;
-          card.style.transform = `translateY(0px) scale(1.03)`;
-          break;
-        }
-      }
-    }
-
-    function onDragEnd(e) {
-      if (e.pointerId !== activePointerId) return;
-      window.removeEventListener('pointermove', onDragMove);
-      window.removeEventListener('pointerup', onDragEnd);
-      window.removeEventListener('pointercancel', onDragEnd);
-
-      card.classList.remove('dragging');
-      card.style.transform = '';
-
-      const newOrderIds = Array.from(countdownList.querySelectorAll('.countdown-card')).map(c => c.dataset.id);
-      countdowns.sort((a, b) => newOrderIds.indexOf(a.id) - newOrderIds.indexOf(b.id));
-      saveCountdowns();
-
-      isDragging = false;
-      activeDragCard = null;
-      activePointerId = null;
-
-      renderCountdowns();
-    }
-
-    window.addEventListener('pointermove', onDragMove, { passive: false });
-    window.addEventListener('pointerup', onDragEnd);
-    window.addEventListener('pointercancel', onDragEnd);
   }
 
   // Real-time ticking loop
