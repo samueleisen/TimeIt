@@ -404,119 +404,22 @@
     renderCountdowns();
   }
 
-  // Render & Update Countdowns & Group Headers
+  // Render & Update Countdowns
   function renderCountdowns() {
     const now = Date.now();
 
     if (countdowns.length === 0) {
       canvasEmpty.style.display = 'flex';
-      countdownList.innerHTML = '';
-      return;
     } else {
       canvasEmpty.style.display = 'none';
     }
 
-    const existingElements = new Map();
-    countdownList.querySelectorAll('.countdown-card, .group-header').forEach(el => {
-      existingElements.set(el.dataset.id, el);
+    const existingCards = new Map();
+    countdownList.querySelectorAll('.countdown-card').forEach(card => {
+      existingCards.set(card.dataset.id, card);
     });
 
-    // Clean existing slot dividers before rebuilding layout
-    countdownList.querySelectorAll('.group-insert-slot').forEach(s => s.remove());
-
-    countdowns.forEach((item, index) => {
-      // 1. In Edit Mode, insert an insertion slot before this item
-      if (editMode) {
-        const slot = createInsertSlot(index);
-        countdownList.appendChild(slot);
-      }
-
-      // 2. Render Group Header
-      if (item.isHeader) {
-        let headerEl = existingElements.get(item.id);
-
-        if (!headerEl) {
-          headerEl = document.createElement('div');
-          headerEl.className = 'group-header card-enter';
-          headerEl.dataset.id = item.id;
-
-          headerEl.innerHTML = `
-            <div class="card-drag-handle hidden" title="Drag to reorder" aria-label="Drag handle">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
-                <circle cx="9" cy="5" r="1.8"/>
-                <circle cx="9" cy="12" r="1.8"/>
-                <circle cx="9" cy="19" r="1.8"/>
-                <circle cx="15" cy="5" r="1.8"/>
-                <circle cx="15" cy="12" r="1.8"/>
-                <circle cx="15" cy="19" r="1.8"/>
-              </svg>
-            </div>
-            <span class="group-header-title"></span>
-            <div class="group-header-line"></div>
-            <button class="group-delete-btn hidden" title="Delete Group Header" aria-label="Delete">
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"></line>
-                <line x1="6" y1="6" x2="18" y2="18"></line>
-              </svg>
-            </button>
-          `;
-
-          const headerTitleEl = headerEl.querySelector('.group-header-title');
-          headerTitleEl.addEventListener('blur', () => {
-            const currentItem = countdowns.find(c => c.id === headerEl.dataset.id);
-            if (!currentItem) return;
-            const newTitle = headerTitleEl.textContent.trim() || 'Group';
-            headerTitleEl.textContent = newTitle;
-            if (currentItem.title !== newTitle) {
-              currentItem.title = newTitle;
-              saveCountdowns();
-            }
-          });
-
-          headerTitleEl.addEventListener('keydown', (e) => {
-            if (e.key === 'Enter') {
-              e.preventDefault();
-              headerTitleEl.blur();
-            }
-          });
-
-          headerEl.querySelector('.group-delete-btn').addEventListener('click', (e) => {
-            e.stopPropagation();
-            deleteCountdown(item.id);
-          });
-
-          countdownList.appendChild(headerEl);
-        } else {
-          existingElements.delete(item.id);
-          countdownList.appendChild(headerEl);
-        }
-
-        const headerTitleEl = headerEl.querySelector('.group-header-title');
-        if (document.activeElement !== headerTitleEl) {
-          headerTitleEl.textContent = item.title;
-        }
-
-        const dragHandle = headerEl.querySelector('.card-drag-handle');
-        const deleteBtn = headerEl.querySelector('.group-delete-btn');
-
-        if (editMode) {
-          headerTitleEl.contentEditable = 'true';
-          headerTitleEl.title = 'Click to rename group';
-          if (dragHandle) dragHandle.classList.remove('hidden');
-          if (deleteBtn) deleteBtn.classList.remove('hidden');
-          headerEl.setAttribute('draggable', 'true');
-        } else {
-          headerTitleEl.contentEditable = 'false';
-          headerTitleEl.removeAttribute('title');
-          if (dragHandle) dragHandle.classList.add('hidden');
-          if (deleteBtn) deleteBtn.classList.add('hidden');
-          headerEl.removeAttribute('draggable');
-        }
-
-        return; // Handled header
-      }
-
-      // 3. Render Normal Countdown Card
+    countdowns.forEach((item) => {
       const remainingMs = item.targetTimestamp - now;
       const isCompleted = remainingMs <= 0;
 
@@ -529,7 +432,7 @@
         secs = totalSec % 60;
       }
 
-      let card = existingElements.get(item.id);
+      let card = existingCards.get(item.id);
 
       if (!card) {
         card = document.createElement('div');
@@ -611,8 +514,7 @@
 
         countdownList.appendChild(card);
       } else {
-        existingElements.delete(item.id);
-        countdownList.appendChild(card);
+        existingCards.delete(item.id);
       }
 
       // Update Card Content
@@ -706,60 +608,12 @@
       }
     });
 
-    // 4. In Edit Mode, add final bottom insertion slot
-    if (editMode && countdowns.length > 0) {
-      const bottomSlot = createInsertSlot(countdowns.length);
-      countdownList.appendChild(bottomSlot);
-    }
-
-    // Remove obsolete items
-    existingElements.forEach(el => el.remove());
-  }
-
-  // Create an insertion slot element for Edit Mode
-  function createInsertSlot(index) {
-    const slot = document.createElement('div');
-    slot.className = 'group-insert-slot';
-    slot.dataset.slotIndex = index;
-    slot.innerHTML = `<button class="insert-group-btn" type="button" title="Add group section here">+ Group</button>`;
-    
-    slot.querySelector('.insert-group-btn').addEventListener('click', (e) => {
-      e.stopPropagation();
-      insertGroupHeader(index);
-    });
-
-    return slot;
-  }
-
-  // Insert Group Header at index
-  function insertGroupHeader(index) {
-    const newHeader = {
-      id: 'h_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
-      isHeader: true,
-      title: 'New Group',
-      createdAt: Date.now()
-    };
-
-    countdowns.splice(index, 0, newHeader);
-    saveCountdowns();
-    renderCountdowns();
-
-    // Auto-focus new header title for immediate inline typing
-    setTimeout(() => {
-      const headerTitleEl = countdownList.querySelector(`[data-id="${newHeader.id}"] .group-header-title`);
-      if (headerTitleEl) {
-        headerTitleEl.focus();
-        const range = document.createRange();
-        range.selectNodeContents(headerTitleEl);
-        const sel = window.getSelection();
-        sel.removeAllRanges();
-        sel.addRange(range);
-      }
-    }, 60);
+    // Remove obsolete cards
+    existingCards.forEach(card => card.remove());
   }
 
   // Drag and Drop Engine (Desktop Drag & Mobile Touch Reordering)
-  let draggedItem = null;
+  let draggedCard = null;
 
   function initDragAndDrop() {
     countdownList.addEventListener('dragstart', (e) => {
@@ -767,77 +621,77 @@
         e.preventDefault();
         return;
       }
-      const itemEl = e.target.closest('.countdown-card, .group-header');
-      if (!itemEl) return;
-      draggedItem = itemEl;
+      const card = e.target.closest('.countdown-card');
+      if (!card) return;
+      draggedCard = card;
 
       if (e.dataTransfer) {
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.setData('text/plain', itemEl.dataset.id);
+        e.dataTransfer.setData('text/plain', card.dataset.id);
       }
 
       // Delay applying dragging class so browser captures a clean drag ghost
       setTimeout(() => {
-        if (draggedItem) draggedItem.classList.add('dragging');
+        if (draggedCard) draggedCard.classList.add('dragging');
       }, 0);
     });
 
     countdownList.addEventListener('dragend', (e) => {
-      const itemEl = e.target.closest('.countdown-card, .group-header');
-      if (itemEl) itemEl.classList.remove('dragging');
-      if (draggedItem) draggedItem.classList.remove('dragging');
-      draggedItem = null;
+      const card = e.target.closest('.countdown-card');
+      if (card) card.classList.remove('dragging');
+      if (draggedCard) draggedCard.classList.remove('dragging');
+      draggedCard = null;
       persistCardOrder();
     });
 
     countdownList.addEventListener('dragover', (e) => {
-      if (!editMode || !draggedItem) return;
+      if (!editMode || !draggedCard) return;
       e.preventDefault();
       if (e.dataTransfer) e.dataTransfer.dropEffect = 'move';
 
       const afterElement = getDragAfterElement(countdownList, e.clientY);
       if (afterElement == null) {
-        if (countdownList.lastElementChild !== draggedItem) {
-          countdownList.appendChild(draggedItem);
+        if (countdownList.lastElementChild !== draggedCard) {
+          countdownList.appendChild(draggedCard);
         }
-      } else if (afterElement !== draggedItem && afterElement !== draggedItem.nextElementSibling) {
-        countdownList.insertBefore(draggedItem, afterElement);
+      } else if (afterElement !== draggedCard && afterElement !== draggedCard.nextElementSibling) {
+        countdownList.insertBefore(draggedCard, afterElement);
       }
     });
 
     // Touch Support for Mobile Dragging via Drag Handle
-    let activeTouchItem = null;
+    let activeTouchCard = null;
 
     countdownList.addEventListener('touchstart', (e) => {
       if (!editMode) return;
       const handle = e.target.closest('.card-drag-handle');
       if (!handle) return;
-      const itemEl = handle.closest('.countdown-card, .group-header');
-      if (!itemEl) return;
+      const card = handle.closest('.countdown-card');
+      if (!card) return;
 
-      activeTouchItem = itemEl;
-      activeTouchItem.classList.add('dragging');
+      activeTouchCard = card;
+      activeTouchCard.classList.add('dragging');
     }, { passive: false });
 
     countdownList.addEventListener('touchmove', (e) => {
-      if (!editMode || !activeTouchItem) return;
-      e.preventDefault(); // Prevent page scrolling during item drag
+      if (!editMode || !activeTouchCard) return;
+      e.preventDefault(); // Prevent page scrolling during card drag
 
       const touchY = e.touches[0].clientY;
       const afterElement = getDragAfterElement(countdownList, touchY);
       if (afterElement == null) {
-        if (countdownList.lastElementChild !== activeTouchItem) {
-          countdownList.appendChild(activeTouchItem);
+        if (countdownList.lastElementChild !== activeTouchCard) {
+          countdownList.appendChild(activeTouchCard);
         }
-      } else if (afterElement !== activeTouchItem && afterElement !== activeTouchItem.nextElementSibling) {
-        countdownList.insertBefore(activeTouchItem, afterElement);
+      } else if (afterElement !== activeTouchCard && afterElement !== activeTouchCard.nextElementSibling) {
+        countdownList.insertBefore(activeTouchCard, afterElement);
       }
     }, { passive: false });
 
     const handleTouchEnd = () => {
-      if (activeTouchItem) {
-        activeTouchItem.classList.remove('dragging');
-        activeTouchItem = null;
+      if (activeTouchCard) {
+        activeTouchCard.classList.remove('dragging');
+        activeTouchCard = null;
         persistCardOrder();
       }
     };
@@ -847,7 +701,7 @@
   }
 
   function getDragAfterElement(container, y) {
-    const draggableElements = [...container.querySelectorAll('.countdown-card:not(.dragging), .group-header:not(.dragging)')];
+    const draggableElements = [...container.querySelectorAll('.countdown-card:not(.dragging)')];
 
     return draggableElements.reduce((closest, child) => {
       const box = child.getBoundingClientRect();
@@ -861,9 +715,9 @@
   }
 
   function persistCardOrder() {
-    const currentElements = countdownList.querySelectorAll('.countdown-card, .group-header');
-    const newOrderIds = Array.from(currentElements).map(el => el.dataset.id);
-    
+    const currentCardElements = countdownList.querySelectorAll('.countdown-card');
+    const newOrderIds = Array.from(currentCardElements).map(card => card.dataset.id);
+
     // Reorder countdowns array according to DOM order
     countdowns.sort((a, b) => {
       const idxA = newOrderIds.indexOf(a.id);
