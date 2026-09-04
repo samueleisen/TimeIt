@@ -335,106 +335,11 @@
     }
   });
 
-  // Drag & Swap Reorder State
-  let isDragging = false;
-  let activeDragCard = null;
-  let dragHoldTimer = null;
-  let dragPointerId = null;
-
   // Edit Mode Toggle Listener
   editModeToggle.addEventListener('change', (e) => {
     editMode = e.target.checked;
-    countdownList.classList.toggle('edit-mode', editMode);
-    document.body.classList.toggle('edit-mode', editMode);
     renderCountdowns();
   });
-
-  // Setup Hold-to-Drag on the right-side units handle
-  function setupCardDrag(card, unitsEl) {
-    let pointerStartX = 0;
-    let pointerStartY = 0;
-
-    unitsEl.addEventListener('pointerdown', (e) => {
-      if (!editMode || isDragging) return;
-      if (e.button !== undefined && e.button !== 0) return;
-
-      pointerStartX = e.clientX;
-      pointerStartY = e.clientY;
-      dragPointerId = e.pointerId;
-
-      clearTimeout(dragHoldTimer);
-      dragHoldTimer = setTimeout(() => {
-        isDragging = true;
-        activeDragCard = card;
-        card.classList.add('is-dragging');
-
-        try {
-          unitsEl.setPointerCapture(dragPointerId);
-        } catch (err) {}
-
-        if (navigator.vibrate) navigator.vibrate(30);
-      }, 500);
-    });
-
-    unitsEl.addEventListener('pointermove', (e) => {
-      if (dragHoldTimer && !isDragging) {
-        const dx = Math.abs(e.clientX - pointerStartX);
-        const dy = Math.abs(e.clientY - pointerStartY);
-        if (dx > 10 || dy > 10) {
-          clearTimeout(dragHoldTimer);
-          dragHoldTimer = null;
-        }
-      }
-
-      if (!isDragging || activeDragCard !== card) return;
-
-      e.preventDefault();
-      const currentY = e.clientY;
-      const deltaY = currentY - pointerStartY;
-      card.style.transform = `translateY(${deltaY}px) scale(1.03)`;
-
-      // Dynamic position swapping with siblings
-      const cards = Array.from(countdownList.querySelectorAll('.countdown-card:not(.is-dragging)'));
-      for (const sibling of cards) {
-        const rect = sibling.getBoundingClientRect();
-        if (currentY >= rect.top && currentY <= rect.bottom) {
-          const middleY = rect.top + rect.height / 2;
-          if (currentY < middleY) {
-            countdownList.insertBefore(card, sibling);
-          } else {
-            countdownList.insertBefore(card, sibling.nextSibling);
-          }
-          break;
-        }
-      }
-    });
-
-    const endDrag = () => {
-      clearTimeout(dragHoldTimer);
-      dragHoldTimer = null;
-
-      if (isDragging && activeDragCard === card) {
-        try {
-          unitsEl.releasePointerCapture(dragPointerId);
-        } catch (err) {}
-
-        card.classList.remove('is-dragging');
-        card.style.transform = '';
-
-        // Update countdowns array order to match new DOM sequence
-        const cardElements = Array.from(countdownList.querySelectorAll('.countdown-card'));
-        const idToIndex = new Map(cardElements.map((el, idx) => [el.dataset.id, idx]));
-        countdowns.sort((a, b) => (idToIndex.get(a.id) ?? 0) - (idToIndex.get(b.id) ?? 0));
-        saveCountdowns();
-
-        isDragging = false;
-        activeDragCard = null;
-      }
-    };
-
-    unitsEl.addEventListener('pointerup', endDrag);
-    unitsEl.addEventListener('pointercancel', endDrag);
-  }
 
   // Add Countdown Form Submit
   addCountdownForm.addEventListener('submit', (e) => {
@@ -499,99 +404,22 @@
     renderCountdowns();
   }
 
-  // Update card digits & gauge values
-  function updateCardValues(card, item, now) {
-    const remainingMs = item.targetTimestamp - now;
-    const isCompleted = remainingMs <= 0;
-
-    let days = 0, hours = 0, mins = 0;
-    if (!isCompleted) {
-      const totalSec = Math.floor(remainingMs / 1000);
-      days = Math.floor(totalSec / 86400);
-      hours = Math.floor((totalSec % 86400) / 3600);
-      mins = Math.floor((totalSec % 3600) / 60);
+  // Reorder Countdowns (1-Tap Up / Down in Edit Mode)
+  function moveCountdownUp(id) {
+    const idx = countdowns.findIndex(c => c.id === id);
+    if (idx > 0) {
+      [countdowns[idx - 1], countdowns[idx]] = [countdowns[idx], countdowns[idx - 1]];
+      saveCountdowns();
+      renderCountdowns();
     }
+  }
 
-    const titleEl = card.querySelector('.card-title');
-    if (document.activeElement !== titleEl) {
-      titleEl.textContent = item.title;
-    }
-
-    // Edit Mode Behavior: Toggle contenteditable & delete button
-    if (editMode) {
-      titleEl.contentEditable = 'true';
-      titleEl.title = 'Click to rename';
-    } else {
-      titleEl.contentEditable = 'false';
-      titleEl.removeAttribute('title');
-    }
-
-    const deleteBtn = card.querySelector('.card-delete-btn');
-    if (editMode) {
-      deleteBtn.classList.remove('hidden');
-    } else {
-      deleteBtn.classList.add('hidden');
-    }
-
-    // 16-character stepped font sizing
-    const titleLen = (titleEl.textContent || item.title || '').length;
-    titleEl.classList.remove('title-md', 'title-sm');
-    if (titleLen > 32) {
-      titleEl.classList.add('title-sm');
-    } else if (titleLen > 16) {
-      titleEl.classList.add('title-md');
-    }
-
-    // Background Progress Fill Gauge Calculation (0% -> 100%)
-    const totalDuration = item.initialDurationMs || (item.targetTimestamp - item.createdAt) || 1;
-    let progressPercent = 0;
-    if (isCompleted) {
-      progressPercent = 100;
-    } else {
-      const elapsed = totalDuration - remainingMs;
-      progressPercent = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
-    }
-    const bgGauge = card.querySelector('.card-bg-gauge');
-    if (bgGauge) {
-      bgGauge.style.width = `${progressPercent.toFixed(2)}%`;
-    }
-
-    const unit1Val = card.querySelector('.unit1-val');
-    const unit1Lbl = card.querySelector('.unit1-lbl');
-    const unit2Val = card.querySelector('.unit2-val');
-    const unit2Lbl = card.querySelector('.unit2-lbl');
-    const resetOverlay = card.querySelector('.card-reset-overlay');
-
-    const pad = (n) => String(n).padStart(2, '0');
-
-    if (isCompleted) {
-      card.classList.add('completed');
-      if (resetOverlay) {
-        if (editMode) {
-          resetOverlay.classList.add('hidden');
-        } else {
-          resetOverlay.classList.remove('hidden');
-        }
-      }
-      unit1Val.textContent = '00';
-      unit1Lbl.textContent = 'H';
-      unit2Val.textContent = '00';
-      unit2Lbl.textContent = 'M';
-    } else {
-      card.classList.remove('completed');
-      if (resetOverlay) resetOverlay.classList.add('hidden');
-
-      if (days >= 1) {
-        unit1Val.textContent = pad(days);
-        unit1Lbl.textContent = 'D';
-        unit2Val.textContent = pad(hours);
-        unit2Lbl.textContent = 'H';
-      } else {
-        unit1Val.textContent = pad(hours);
-        unit1Lbl.textContent = 'H';
-        unit2Val.textContent = pad(mins);
-        unit2Lbl.textContent = 'M';
-      }
+  function moveCountdownDown(id) {
+    const idx = countdowns.findIndex(c => c.id === id);
+    if (idx !== -1 && idx < countdowns.length - 1) {
+      [countdowns[idx], countdowns[idx + 1]] = [countdowns[idx + 1], countdowns[idx]];
+      saveCountdowns();
+      renderCountdowns();
     }
   }
 
@@ -605,21 +433,24 @@
       canvasEmpty.style.display = 'none';
     }
 
-    if (isDragging) {
-      // During active drag, silently update text values without altering DOM order
-      countdowns.forEach((item) => {
-        const card = countdownList.querySelector(`.countdown-card[data-id="${item.id}"]`);
-        if (card) updateCardValues(card, item, now);
-      });
-      return;
-    }
-
     const existingCards = new Map();
     countdownList.querySelectorAll('.countdown-card').forEach(card => {
       existingCards.set(card.dataset.id, card);
     });
 
-    countdowns.forEach((item) => {
+    countdowns.forEach((item, index) => {
+      const remainingMs = item.targetTimestamp - now;
+      const isCompleted = remainingMs <= 0;
+
+      let days = 0, hours = 0, mins = 0, secs = 0;
+      if (!isCompleted) {
+        const totalSec = Math.floor(remainingMs / 1000);
+        days = Math.floor(totalSec / 86400);
+        hours = Math.floor((totalSec % 86400) / 3600);
+        mins = Math.floor((totalSec % 3600) / 60);
+        secs = totalSec % 60;
+      }
+
       let card = existingCards.get(item.id);
 
       if (!card) {
@@ -641,6 +472,18 @@
                   <span class="unit-value unit2-val">00</span>
                   <span class="unit-label unit2-lbl">H</span>
                 </div>
+              </div>
+              <div class="card-reorder-group hidden">
+                <button class="card-reorder-btn card-move-up-btn" title="Move Up" aria-label="Move Up">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="18 15 12 9 6 15"></polyline>
+                  </svg>
+                </button>
+                <button class="card-reorder-btn card-move-down-btn" title="Move Down" aria-label="Move Down">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="6 9 12 15 18 9"></polyline>
+                  </svg>
+                </button>
               </div>
               <button class="card-delete-btn hidden" title="Delete" aria-label="Delete">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -685,21 +528,122 @@
           });
         }
 
+        card.querySelector('.card-move-up-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          moveCountdownUp(item.id);
+        });
+
+        card.querySelector('.card-move-down-btn').addEventListener('click', (e) => {
+          e.stopPropagation();
+          moveCountdownDown(item.id);
+        });
+
         card.querySelector('.card-delete-btn').addEventListener('click', (e) => {
           e.stopPropagation();
           deleteCountdown(item.id);
         });
 
-        // Setup Hold-to-Drag on the right-side units handle
-        setupCardDrag(card, card.querySelector('.countdown-units'));
-
         countdownList.appendChild(card);
       } else {
         existingCards.delete(item.id);
+        countdownList.appendChild(card);
       }
 
       // Update Card Content
-      updateCardValues(card, item, now);
+      const titleEl = card.querySelector('.card-title');
+      if (document.activeElement !== titleEl) {
+        titleEl.textContent = item.title;
+      }
+
+      // Edit Mode Behavior: Toggle contenteditable, reorder buttons & delete button
+      if (editMode) {
+        titleEl.contentEditable = 'true';
+        titleEl.title = 'Click to rename';
+      } else {
+        titleEl.contentEditable = 'false';
+        titleEl.removeAttribute('title');
+      }
+
+      const reorderGroup = card.querySelector('.card-reorder-group');
+      const moveUpBtn = card.querySelector('.card-move-up-btn');
+      const moveDownBtn = card.querySelector('.card-move-down-btn');
+      if (editMode) {
+        if (reorderGroup) reorderGroup.classList.remove('hidden');
+        if (moveUpBtn) moveUpBtn.disabled = (index === 0);
+        if (moveDownBtn) moveDownBtn.disabled = (index === countdowns.length - 1);
+      } else {
+        if (reorderGroup) reorderGroup.classList.add('hidden');
+      }
+
+      const deleteBtn = card.querySelector('.card-delete-btn');
+      if (editMode) {
+        deleteBtn.classList.remove('hidden');
+      } else {
+        deleteBtn.classList.add('hidden');
+      }
+
+      // 16-character stepped font sizing
+      const titleLen = (titleEl.textContent || item.title || '').length;
+      titleEl.classList.remove('title-md', 'title-sm');
+      if (titleLen > 32) {
+        titleEl.classList.add('title-sm');
+      } else if (titleLen > 16) {
+        titleEl.classList.add('title-md');
+      }
+
+      // Background Progress Fill Gauge Calculation (0% -> 100%)
+      const totalDuration = item.initialDurationMs || (item.targetTimestamp - item.createdAt) || 1;
+      let progressPercent = 0;
+      if (isCompleted) {
+        progressPercent = 100;
+      } else {
+        const elapsed = totalDuration - remainingMs;
+        progressPercent = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
+      }
+      const bgGauge = card.querySelector('.card-bg-gauge');
+      if (bgGauge) {
+        bgGauge.style.width = `${progressPercent.toFixed(2)}%`;
+      }
+
+      const unit1Val = card.querySelector('.unit1-val');
+      const unit1Lbl = card.querySelector('.unit1-lbl');
+      const unit2Val = card.querySelector('.unit2-val');
+      const unit2Lbl = card.querySelector('.unit2-lbl');
+      const resetOverlay = card.querySelector('.card-reset-overlay');
+
+      const pad = (n) => String(n).padStart(2, '0');
+
+      if (isCompleted) {
+        card.classList.add('completed');
+        if (resetOverlay) {
+          if (editMode) {
+            resetOverlay.classList.add('hidden');
+          } else {
+            resetOverlay.classList.remove('hidden');
+          }
+        }
+        unit1Val.textContent = '00';
+        unit1Lbl.textContent = 'H';
+        unit2Val.textContent = '00';
+        unit2Lbl.textContent = 'M';
+      } else {
+        card.classList.remove('completed');
+        if (resetOverlay) resetOverlay.classList.add('hidden');
+
+        if (days >= 1) {
+          // Case 1: >= 1 day left -> Display Days + Hours
+          unit1Val.textContent = pad(days);
+          unit1Lbl.textContent = 'D';
+          unit2Val.textContent = pad(hours);
+          unit2Lbl.textContent = 'H';
+        } else {
+          // Case 2: Under 24 hours (days == 0) -> Display Hours + Minutes
+          unit1Val.textContent = pad(hours);
+          unit1Lbl.textContent = 'H';
+          unit2Val.textContent = pad(mins);
+          unit2Lbl.textContent = 'M';
+        }
+      }
     });
 
     // Remove obsolete cards

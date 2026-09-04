@@ -223,10 +223,46 @@ html, body {
 .card-actions {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
+  gap: 0.35rem;
   flex-shrink: 0;
   position: relative;
   z-index: 5;
+}
+
+/* Card Reorder Buttons (Edit Mode) */
+.card-reorder-group {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+}
+
+.card-reorder-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.card-reorder-btn:hover:not(:disabled) {
+  background: rgba(99, 102, 241, 0.18);
+  color: #a5b4fc;
+}
+
+.card-reorder-btn:active:not(:disabled) {
+  transform: scale(0.92);
+}
+
+.card-reorder-btn:disabled {
+  opacity: 0.2;
+  cursor: not-allowed;
 }
 
 /* 1-Tap Reset Button on Card */
@@ -287,26 +323,12 @@ html, body {
   display: flex;
   align-items: baseline;
   gap: 0.45rem;
-  transition: opacity 0.15s ease;
-}
-
-/* Edit Mode Drag Handle on Right Side */
-.edit-mode .countdown-units {
-  cursor: grab;
-  touch-action: none;
-  user-select: none;
-  -webkit-user-select: none;
-}
-
-.edit-mode .countdown-units:active {
-  cursor: grabbing;
 }
 
 .unit-block {
   display: flex;
   align-items: baseline;
   gap: 0.2rem;
-  pointer-events: none;
 }
 
 .unit-value {
@@ -324,18 +346,6 @@ html, body {
   color: var(--text-secondary);
   letter-spacing: 0.04em;
   text-transform: uppercase;
-}
-
-/* Card Dragging State (Hold-to-Carry) */
-.countdown-card.is-dragging {
-  z-index: 100 !important;
-  opacity: 0.92;
-  transform: scale(1.03);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6), 0 0 20px rgba(99, 102, 241, 0.35);
-  border-color: rgba(99, 102, 241, 0.65) !important;
-  cursor: grabbing;
-  pointer-events: none;
-  transition: transform 0.05s linear, box-shadow 0.2s ease !important;
 }
 
 /* Full-Card Reset Overlay Button for 0-time Timers */
