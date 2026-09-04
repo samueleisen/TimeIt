@@ -171,8 +171,9 @@ body {
   top: 0;
   bottom: 0;
   width: 0%;
-  background: rgba(99, 102, 241, 0.22);
-  border-right: 2px solid rgba(129, 140, 248, 0.7);
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.08) 0%, rgba(99, 102, 241, 0.22) 60%, rgba(99, 102, 241, 0.48) 100%);
+  border-right: 2px solid rgba(129, 140, 248, 0.95);
+  box-shadow: 0 0 14px rgba(99, 102, 241, 0.55), inset -6px 0 14px rgba(99, 102, 241, 0.4);
   pointer-events: none;
   z-index: 0;
   transition: width 0.3s ease;
@@ -387,7 +388,7 @@ body {
 
 .countdown-card.completed .card-bg-gauge {
   width: 100% !important;
-  background: rgba(99, 102, 241, 0.25);
+  background: linear-gradient(90deg, rgba(99, 102, 241, 0.22), rgba(129, 140, 248, 0.35));
   border-right: none;
 }
 
