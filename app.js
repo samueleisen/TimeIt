@@ -45,8 +45,10 @@
   const sidebarShortcutUnit = document.getElementById('sidebarShortcutUnit');
   const sidebarAddShortcutBtn = document.getElementById('sidebarAddShortcutBtn');
   const restoreDefaultsBtn = document.getElementById('restoreDefaultsBtn');
+  const editModeToggle = document.getElementById('editModeToggle');
 
-  // Modal Mode State
+  // State
+  let editMode = false;
   let currentModalMode = 'custom'; // 'shortcut' | 'custom'
   let currentSelectedShortcut = null;
 
@@ -333,6 +335,12 @@
     }
   });
 
+  // Edit Mode Toggle Listener
+  editModeToggle.addEventListener('change', (e) => {
+    editMode = e.target.checked;
+    renderCountdowns();
+  });
+
   // Add Countdown Form Submit
   addCountdownForm.addEventListener('submit', (e) => {
     e.preventDefault();
@@ -435,7 +443,7 @@
           <div class="card-top">
             <h3 class="card-title"></h3>
             <div class="card-actions">
-              <button class="card-reset-btn" title="Reset Counter" aria-label="Reset">
+              <button class="card-reset-btn hidden" title="Reset Counter" aria-label="Reset">
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                   <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
                 </svg>
@@ -471,6 +479,29 @@
           </div>
         `;
 
+        const cardTitleEl = card.querySelector('.card-title');
+        cardTitleEl.addEventListener('blur', () => {
+          const currentItem = countdowns.find(c => c.id === card.dataset.id);
+          if (!currentItem) return;
+          const newTitle = cardTitleEl.textContent.trim() || currentItem.title;
+          cardTitleEl.textContent = newTitle;
+          if (currentItem.title !== newTitle) {
+            currentItem.title = newTitle;
+            saveCountdowns();
+          }
+          const titleLen = newTitle.length;
+          cardTitleEl.classList.remove('title-md', 'title-sm');
+          if (titleLen > 32) cardTitleEl.classList.add('title-sm');
+          else if (titleLen > 16) cardTitleEl.classList.add('title-md');
+        });
+
+        cardTitleEl.addEventListener('keydown', (e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault();
+            cardTitleEl.blur();
+          }
+        });
+
         card.querySelector('.card-reset-btn').addEventListener('click', (e) => {
           e.stopPropagation();
           resetCountdown(item.id);
@@ -487,7 +518,36 @@
       }
 
       // Update Card Content
-      card.querySelector('.card-title').textContent = item.title;
+      const titleEl = card.querySelector('.card-title');
+      if (document.activeElement !== titleEl) {
+        titleEl.textContent = item.title;
+      }
+
+      // Edit Mode Behavior: Toggle contenteditable & delete button
+      if (editMode) {
+        titleEl.contentEditable = 'true';
+        titleEl.title = 'Click to rename';
+      } else {
+        titleEl.contentEditable = 'false';
+        titleEl.removeAttribute('title');
+      }
+
+      const deleteBtn = card.querySelector('.card-delete-btn');
+      if (editMode) {
+        deleteBtn.classList.remove('hidden');
+      } else {
+        deleteBtn.classList.add('hidden');
+      }
+
+      // 16-character stepped font sizing
+      const titleLen = (titleEl.textContent || item.title || '').length;
+      titleEl.classList.remove('title-md', 'title-sm');
+      if (titleLen > 32) {
+        titleEl.classList.add('title-sm');
+      } else if (titleLen > 16) {
+        titleEl.classList.add('title-md');
+      }
+
       card.querySelector('.target-time-label').textContent = `Resets: ${formatTargetDate(item.targetTimestamp)}`;
 
       const daysVal = card.querySelector('.days-val');
@@ -496,11 +556,13 @@
       const secsVal = card.querySelector('.secs-val');
       const subUnits = card.querySelector('.sub-units');
       const statusTag = card.querySelector('.status-tag');
+      const resetBtn = card.querySelector('.card-reset-btn');
 
       const pad = (n) => String(n).padStart(2, '0');
 
       if (isCompleted) {
         card.classList.add('completed');
+        resetBtn.classList.remove('hidden');
         daysVal.textContent = '0';
         hoursVal.textContent = '0';
         subUnits.innerHTML = '00m 00s';
@@ -508,6 +570,7 @@
         statusTag.textContent = 'Ready';
       } else {
         card.classList.remove('completed');
+        resetBtn.classList.add('hidden');
         daysVal.textContent = days;
         hoursVal.textContent = pad(hours);
         minsVal.textContent = pad(mins);
