@@ -46,12 +46,14 @@
   const sidebarAddShortcutBtn = document.getElementById('sidebarAddShortcutBtn');
   const restoreDefaultsBtn = document.getElementById('restoreDefaultsBtn');
   const editModeToggle = document.getElementById('editModeToggle');
+  const soundAlertsToggle = document.getElementById('soundAlertsToggle');
   const colorPickerRow = document.getElementById('colorPickerRow');
   const customColorBtn = document.getElementById('customColorBtn');
   const customColorInput = document.getElementById('customColorInput');
 
   // State
   let editMode = false;
+  let soundAlertsEnabled = localStorage.getItem('timekeeper_sound_alerts') !== 'false';
   let currentModalMode = 'custom'; // 'shortcut' | 'custom'
   let currentSelectedShortcut = null;
   let selectedGaugeColor = '#6366f1';
@@ -67,6 +69,123 @@
     const g = (num >> 8) & 255;
     const b = num & 255;
     return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+  }
+
+  // --- Sound & Alerts (Web Audio API Synthesizer + Haptics + Notifications) ---
+  let audioCtx = null;
+
+  function unlockAudioContext() {
+    try {
+      const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+      if (!AudioCtxClass) return;
+      if (!audioCtx) {
+        audioCtx = new AudioCtxClass();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+    } catch (e) {
+      // AudioContext unavailable
+    }
+  }
+
+  // Pre-unlock on first user tap/click
+  document.addEventListener('click', unlockAudioContext, { once: true });
+  document.addEventListener('touchstart', unlockAudioContext, { once: true });
+
+  function playCompletionChime() {
+    if (!soundAlertsEnabled) return;
+    try {
+      unlockAudioContext();
+      if (!audioCtx) return;
+
+      const now = audioCtx.currentTime;
+
+      // Tone 1: C5 (523.25 Hz)
+      const osc1 = audioCtx.createOscillator();
+      const gain1 = audioCtx.createGain();
+      osc1.type = 'sine';
+      osc1.frequency.setValueAtTime(523.25, now);
+      gain1.gain.setValueAtTime(0, now);
+      gain1.gain.linearRampToValueAtTime(0.16, now + 0.03);
+      gain1.gain.exponentialRampToValueAtTime(0.0001, now + 0.45);
+      osc1.connect(gain1);
+      gain1.connect(audioCtx.destination);
+      osc1.start(now);
+      osc1.stop(now + 0.45);
+
+      // Tone 2: E5 (659.25 Hz) - warm ascending chime
+      const osc2 = audioCtx.createOscillator();
+      const gain2 = audioCtx.createGain();
+      osc2.type = 'sine';
+      osc2.frequency.setValueAtTime(659.25, now + 0.1);
+      gain2.gain.setValueAtTime(0, now + 0.1);
+      gain2.gain.linearRampToValueAtTime(0.18, now + 0.14);
+      gain2.gain.exponentialRampToValueAtTime(0.0001, now + 0.75);
+      osc2.connect(gain2);
+      gain2.connect(audioCtx.destination);
+      osc2.start(now + 0.1);
+      osc2.stop(now + 0.75);
+    } catch (err) {
+      console.warn('Audio chime warning:', err);
+    }
+  }
+
+  function triggerHapticVibration() {
+    if (!soundAlertsEnabled) return;
+    try {
+      if ('vibrate' in navigator) {
+        navigator.vibrate([150, 80, 150]);
+      }
+    } catch (err) {
+      // Ignore vibration error
+    }
+  }
+
+  function showSystemNotification(item) {
+    if (!soundAlertsEnabled) return;
+    try {
+      if ('Notification' in window && Notification.permission === 'granted') {
+        const title = `${item.title || 'Timer'} Ready!`;
+        const options = {
+          icon: 'Time-Favico2.jpeg',
+          badge: 'Time-Favico2.jpeg',
+          tag: `timekeeper-${item.id}`,
+          renotify: true
+        };
+        if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+          navigator.serviceWorker.ready.then(reg => {
+            reg.showNotification(title, options);
+          }).catch(() => {
+            new Notification(title, options);
+          });
+        } else {
+          new Notification(title, options);
+        }
+      }
+    } catch (err) {
+      console.warn('Notification warning:', err);
+    }
+  }
+
+  function triggerCountdownAlert(item) {
+    playCompletionChime();
+    triggerHapticVibration();
+    showSystemNotification(item);
+  }
+
+  if (soundAlertsToggle) {
+    soundAlertsToggle.checked = soundAlertsEnabled;
+    soundAlertsToggle.addEventListener('change', (e) => {
+      soundAlertsEnabled = e.target.checked;
+      localStorage.setItem('timekeeper_sound_alerts', soundAlertsEnabled ? 'true' : 'false');
+      if (soundAlertsEnabled) {
+        unlockAudioContext();
+        if ('Notification' in window && Notification.permission === 'default') {
+          Notification.requestPermission();
+        }
+      }
+    });
   }
 
   // Color Picker Setup in Modal
@@ -121,7 +240,13 @@
       if (!data) return [];
       const parsed = JSON.parse(data);
       if (!Array.isArray(parsed)) return [];
-      return parsed.filter(item => item && item.id && typeof item.targetTimestamp === 'number');
+      const now = Date.now();
+      return parsed
+        .filter(item => item && item.id && typeof item.targetTimestamp === 'number')
+        .map(item => ({
+          ...item,
+          alertTriggered: item.targetTimestamp <= now ? true : (item.alertTriggered || false)
+        }));
     } catch (e) {
       console.error('Failed to load countdowns', e);
       return [];
@@ -443,6 +568,7 @@
       targetTimestamp: targetTimestamp,
       initialDurationMs: initialDurationMs,
       color: selectedGaugeColor || '#6366f1',
+      alertTriggered: false,
       createdAt: Date.now()
     };
 
@@ -461,6 +587,7 @@
     const duration = item.initialDurationMs || (item.targetTimestamp - item.createdAt) || (5 * 3600 * 1000);
     item.targetTimestamp = Date.now() + duration;
     item.initialDurationMs = duration;
+    item.alertTriggered = false;
 
     saveCountdowns();
     renderCountdowns();
@@ -659,6 +786,10 @@
       const pad = (n) => String(n).padStart(2, '0');
 
       if (isCompleted) {
+        if (!item.alertTriggered) {
+          item.alertTriggered = true;
+          triggerCountdownAlert(item);
+        }
         card.classList.add('completed');
         card.style.borderColor = hexToRgba(cardColor, 0.45);
         card.style.boxShadow = `0 0 16px ${hexToRgba(cardColor, 0.18)}`;

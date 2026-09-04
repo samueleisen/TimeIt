@@ -1,11 +1,11 @@
-const CACHE_NAME = 'timekeeper-canvas-v26';
+const CACHE_NAME = 'timekeeper-canvas-v28';
 const ASSETS = [
   './',
   './index.html',
   './style.css',
   './app.js',
   './manifest.json',
-  './Time-Favico.jpeg',
+  './Time-Favico2.jpeg',
   './icon.svg'
 ];
 
