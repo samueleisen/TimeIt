@@ -443,12 +443,6 @@
           <div class="card-top">
             <h3 class="card-title"></h3>
             <div class="card-actions">
-              <button class="card-reset-btn hidden" title="Reset Counter" aria-label="Reset">
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67"/>
-                </svg>
-                <span>Reset</span>
-              </button>
               <button class="card-delete-btn" title="Delete" aria-label="Delete">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
@@ -498,10 +492,13 @@
           }
         });
 
-        card.querySelector('.card-reset-btn').addEventListener('click', (e) => {
-          e.stopPropagation();
-          resetCountdown(item.id);
-        });
+        const resetBtnEl = card.querySelector('.card-reset-btn');
+        if (resetBtnEl) {
+          resetBtnEl.addEventListener('click', (e) => {
+            e.stopPropagation();
+            resetCountdown(item.id);
+          });
+        }
 
         card.querySelector('.card-delete-btn').addEventListener('click', (e) => {
           e.stopPropagation();
@@ -557,7 +554,7 @@
 
       if (isCompleted) {
         card.classList.add('completed');
-        resetBtn.classList.remove('hidden');
+        if (resetBtn) resetBtn.classList.remove('hidden');
         unit1Val.textContent = '00';
         unit1Lbl.textContent = 'H';
         unit2Val.textContent = '00';
@@ -566,7 +563,7 @@
         statusTag.textContent = 'Ready';
       } else {
         card.classList.remove('completed');
-        resetBtn.classList.add('hidden');
+        if (resetBtn) resetBtn.classList.add('hidden');
         statusTag.className = 'status-tag active';
         statusTag.textContent = 'Active';
 
