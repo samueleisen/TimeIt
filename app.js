@@ -328,7 +328,7 @@
 
     dateTimeGroup.classList.add('hidden');
     eventTitleInput.value = '';
-    eventTitleInput.placeholder = `${shortcut.label.replace('+', '')} Quota / Activity`;
+    eventTitleInput.placeholder = `${shortcut.label.replace('+', '')} Timer`;
     startCountdownBtn.textContent = `Start ${shortcut.label} Countdown`;
     resetColorPickerUI();
 
@@ -349,7 +349,7 @@
     eventDateInput.value = formatForInput(Date.now() + 24 * 3600 * 1000);
     eventDateInput.min = new Date().toISOString().slice(0, 16);
     eventTitleInput.value = '';
-    eventTitleInput.placeholder = 'e.g. Project Launch, Trip to Tokyo';
+    eventTitleInput.placeholder = 'Countdown Title';
     startCountdownBtn.textContent = 'Start Countdown';
     resetColorPickerUI();
 
