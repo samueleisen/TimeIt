@@ -443,23 +443,22 @@
           <div class="card-top">
             <h3 class="card-title"></h3>
             <div class="card-actions">
-              <button class="card-delete-btn" title="Delete" aria-label="Delete">
+              <div class="countdown-units">
+                <div class="unit-block">
+                  <span class="unit-value unit1-val">00</span>
+                  <span class="unit-label unit1-lbl">D</span>
+                </div>
+                <div class="unit-block">
+                  <span class="unit-value unit2-val">00</span>
+                  <span class="unit-label unit2-lbl">H</span>
+                </div>
+              </div>
+              <button class="card-delete-btn hidden" title="Delete" aria-label="Delete">
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18"></line>
                   <line x1="6" y1="6" x2="18" y2="18"></line>
                 </svg>
               </button>
-            </div>
-          </div>
-
-          <div class="countdown-units">
-            <div class="unit-block">
-              <span class="unit-value unit1-val">00</span>
-              <span class="unit-label unit1-lbl">D</span>
-            </div>
-            <div class="unit-block">
-              <span class="unit-value unit2-val">00</span>
-              <span class="unit-label unit2-lbl">H</span>
             </div>
           </div>
 
