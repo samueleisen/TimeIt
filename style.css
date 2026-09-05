@@ -104,7 +104,7 @@ body {
 .countdown-list {
   display: flex;
   flex-direction: column;
-  gap: 0.65rem;
+  gap: 0.35rem;
   flex: 1;
 }
 
@@ -211,6 +211,85 @@ body {
   box-shadow: 0 10px 28px rgba(99, 102, 241, 0.35);
   z-index: 20;
   cursor: grabbing;
+}
+
+/* Separator Card (Style 1: Minimalist Section Header with Glowing Line) */
+.countdown-card.separator-card {
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  padding: 1.05rem 0.35rem 0.05rem 0.35rem;
+  box-shadow: none;
+  min-height: 28px;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  overflow: visible;
+  transition: all 0.18s ease;
+}
+
+.countdown-card.separator-card .card-content {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.separator-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  color: var(--card-accent, var(--accent-primary, #818cf8));
+  user-select: none;
+  -webkit-user-select: none;
+  text-shadow: none;
+  word-break: break-word;
+  line-height: 1.3;
+  max-width: 65%;
+  transition: font-size 0.15s ease;
+}
+
+.separator-title.title-md {
+  font-size: 0.72rem;
+  letter-spacing: 0.01em;
+}
+
+.separator-title.title-sm {
+  font-size: 0.64rem;
+  letter-spacing: 0;
+}
+
+.separator-title[contenteditable="true"] {
+  outline: none;
+  cursor: text;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.35);
+  padding-bottom: 1px;
+}
+
+.separator-line {
+  flex: 1;
+  height: 1px;
+  background: var(--card-accent, #6366f1);
+  opacity: 0.55;
+  box-shadow: none;
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+/* Edit Mode styling for separator */
+.countdown-card.separator-card.edit-mode-active {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed rgba(255, 255, 255, 0.16);
+  padding: 0.5rem 0.85rem;
+  border-radius: var(--radius-md);
+  margin: 0.3rem 0;
+}
+
+.countdown-card.separator-card.dragging {
+  opacity: 0.65;
+  background: rgba(99, 102, 241, 0.12) !important;
+  border: 1px solid var(--card-accent, #6366f1) !important;
+  box-shadow: 0 8px 24px var(--accent-glow) !important;
+  transform: scale(1.02);
 }
 
 /* Card Content Container (z-index above background gauge) */
@@ -332,6 +411,7 @@ body {
   0% {
     width: 0%;
   }
+
   100% {
     width: 100%;
   }
@@ -351,11 +431,13 @@ body {
   0% {
     transform: scale(1);
   }
+
   40% {
     transform: scale(1.03);
     border-color: #ffffff !important;
     box-shadow: 0 0 24px var(--card-accent, #6366f1), 0 0 35px rgba(255, 255, 255, 0.3) !important;
   }
+
   100% {
     transform: scale(1);
   }
@@ -652,6 +734,39 @@ body {
   color: #818cf8;
   font-weight: 600;
   margin-top: 0.2rem;
+}
+
+.sheet-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.sheet-mode-switch-btn {
+  background: rgba(99, 102, 241, 0.12);
+  border: 1px solid rgba(99, 102, 241, 0.28);
+  color: #a5b4fc;
+  font-size: 0.68rem;
+  font-weight: 600;
+  padding: 0.25rem 0.6rem;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: all 0.18s ease;
+  font-family: inherit;
+  outline: none;
+}
+
+.sheet-mode-switch-btn:hover {
+  background: rgba(99, 102, 241, 0.22);
+  color: #ffffff;
+  border-color: rgba(99, 102, 241, 0.45);
+}
+
+.sheet-mode-switch-btn.hidden {
+  display: none !important;
 }
 
 .close-btn {

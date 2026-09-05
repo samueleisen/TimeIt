@@ -32,6 +32,8 @@
   const addCountdownForm = document.getElementById('addCountdownForm');
   const modalTitle = document.getElementById('modalTitle');
   const modalSubtitle = document.getElementById('modalSubtitle');
+  const modalModeSwitchBtn = document.getElementById('modalModeSwitchBtn');
+  const modalModeSwitchText = document.getElementById('modalModeSwitchText');
   const dateTimeGroup = document.getElementById('dateTimeGroup');
   const modeBtnDate = document.getElementById('modeBtnDate');
   const modeBtnDuration = document.getElementById('modeBtnDuration');
@@ -61,7 +63,7 @@
   // State
   let editMode = false;
   let soundAlertsEnabled = localStorage.getItem('timekeeper_sound_alerts') !== 'false';
-  let currentModalMode = 'custom'; // 'shortcut' | 'custom'
+  let currentModalMode = 'custom'; // 'shortcut' | 'custom' | 'separator'
   let customInputMode = 'duration'; // 'duration' | 'date'
   let currentSelectedShortcut = null;
   let selectedGaugeColor = '#6366f1';
@@ -251,11 +253,16 @@
       if (!Array.isArray(parsed)) return [];
       const now = Date.now();
       return parsed
-        .filter(item => item && item.id && typeof item.targetTimestamp === 'number')
-        .map(item => ({
-          ...item,
-          alertTriggered: item.targetTimestamp <= now ? true : (item.alertTriggered || false)
-        }));
+        .filter(item => item && item.id && (item.type === 'separator' || typeof item.targetTimestamp === 'number'))
+        .map(item => {
+          if (item.type === 'separator') {
+            return item;
+          }
+          return {
+            ...item,
+            alertTriggered: item.targetTimestamp <= now ? true : (item.alertTriggered || false)
+          };
+        });
     } catch (e) {
       console.error('Failed to load countdowns', e);
       return [];
@@ -460,6 +467,8 @@
     modalSubtitle.textContent = `Duration: ${formatHumanDuration(shortcut.ms)} • Resets: ${formatTargetDate(resetTimestamp)}`;
     modalSubtitle.style.display = 'block';
 
+    if (modalModeSwitchBtn) modalModeSwitchBtn.classList.add('hidden');
+
     dateTimeGroup.classList.add('hidden');
     eventTitleInput.value = '';
     eventTitleInput.placeholder = `${shortcut.label.replace('+', '')} Timer`;
@@ -496,17 +505,71 @@
     modeBtnDuration.addEventListener('click', () => setCustomInputMode('duration'));
   }
 
+  // Switch modal between Countdown and Separator
+  function setModalToSeparator() {
+    currentModalMode = 'separator';
+    modalTitle.textContent = 'New Separator';
+    modalSubtitle.style.display = 'block';
+
+    if (modalModeSwitchText) modalModeSwitchText.textContent = 'Countdown';
+
+    dateTimeGroup.classList.add('hidden');
+    eventTitleInput.value = '';
+    eventTitleInput.placeholder = 'Section Title (e.g. Work, Personal)';
+    startCountdownBtn.textContent = 'Add Separator';
+
+    setTimeout(() => eventTitleInput.focus(), 120);
+  }
+
+  function setModalToCountdown() {
+    currentModalMode = 'custom';
+    modalTitle.textContent = 'Custom Countdown';
+    modalSubtitle.textContent = '';
+    modalSubtitle.style.display = 'none';
+
+    if (modalModeSwitchText) modalModeSwitchText.textContent = '+ Separator';
+
+    dateTimeGroup.classList.remove('hidden');
+    setCustomInputMode(customInputMode || 'duration');
+    eventTitleInput.placeholder = 'Countdown Title';
+    startCountdownBtn.textContent = 'Start Countdown';
+
+    setTimeout(() => {
+      if (customInputMode === 'duration' && customHoursInput) {
+        customHoursInput.focus();
+        customHoursInput.select();
+      } else {
+        eventTitleInput.focus();
+      }
+    }, 120);
+  }
+
+  if (modalModeSwitchBtn) {
+    modalModeSwitchBtn.addEventListener('click', () => {
+      if (currentModalMode === 'separator') {
+        setModalToCountdown();
+      } else {
+        setModalToSeparator();
+      }
+    });
+  }
+
   // Open Full Custom Countdown Modal (2nd tap on FAB)
   function openCustomModal() {
     currentModalMode = 'custom';
     currentSelectedShortcut = null;
 
-    modalTitle.textContent = 'Custom Countdown';
+    modalTitle.textContent = 'Custom Time';
     modalSubtitle.textContent = '';
     modalSubtitle.style.display = 'none';
 
+    if (modalModeSwitchBtn) {
+      modalModeSwitchBtn.classList.remove('hidden');
+      if (modalModeSwitchText) modalModeSwitchText.textContent = '+ Separator';
+    }
+
     dateTimeGroup.classList.remove('hidden');
-    setCustomInputMode(customInputMode || 'date');
+    setCustomInputMode(customInputMode || 'duration');
 
     eventDateInput.value = formatForInput(Date.now() + 24 * 3600 * 1000);
     eventDateInput.min = new Date().toISOString().slice(0, 16);
@@ -532,6 +595,8 @@
     if (customDaysInput) customDaysInput.value = '';
     if (customHoursInput) customHoursInput.value = '';
     if (customMinsInput) customMinsInput.value = '';
+    if (modalModeSwitchBtn) modalModeSwitchBtn.classList.remove('hidden');
+    currentModalMode = 'custom';
     resetColorPickerUI();
   }
 
@@ -588,6 +653,22 @@
     let title = eventTitleInput.value.trim();
     let targetTimestamp = 0;
     let initialDurationMs = 0;
+
+    if (currentModalMode === 'separator') {
+      const newSeparator = {
+        id: 'sep_' + Date.now() + '_' + Math.random().toString(36).substr(2, 4),
+        type: 'separator',
+        title: title || 'Section',
+        color: selectedGaugeColor || '#6366f1',
+        createdAt: Date.now()
+      };
+
+      countdowns.unshift(newSeparator);
+      saveCountdowns();
+      closeSheet();
+      renderCountdowns();
+      return;
+    }
 
     if (currentModalMode === 'shortcut' && currentSelectedShortcut) {
       initialDurationMs = currentSelectedShortcut.ms;
@@ -650,7 +731,7 @@
   // 1-Tap Reset Countdown
   function resetCountdown(id) {
     const item = countdowns.find(c => c.id === id);
-    if (!item) return;
+    if (!item || item.type === 'separator') return;
 
     // Reset target timestamp to now + original duration
     const duration = item.initialDurationMs || (item.targetTimestamp - item.createdAt) || (5 * 3600 * 1000);
@@ -685,6 +766,110 @@
     });
 
     countdowns.forEach((item) => {
+      if (item.type === 'separator') {
+        let card = existingCards.get(item.id);
+
+        if (!card) {
+          card = document.createElement('div');
+          card.className = 'countdown-card separator-card card-enter';
+          card.dataset.id = item.id;
+
+          card.innerHTML = `
+            <div class="card-content">
+              <div class="card-drag-handle hidden" title="Drag to reorder" aria-label="Drag handle">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor">
+                  <circle cx="9" cy="5" r="1.8"/>
+                  <circle cx="9" cy="12" r="1.8"/>
+                  <circle cx="9" cy="19" r="1.8"/>
+                  <circle cx="15" cy="5" r="1.8"/>
+                  <circle cx="15" cy="12" r="1.8"/>
+                  <circle cx="15" cy="19" r="1.8"/>
+                </svg>
+              </div>
+              <span class="separator-title"></span>
+              <div class="separator-line"></div>
+              <button class="card-delete-btn hidden" title="Delete separator" aria-label="Delete separator">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            </div>
+          `;
+
+          const titleEl = card.querySelector('.separator-title');
+          titleEl.addEventListener('blur', () => {
+            const currentItem = countdowns.find(c => c.id === card.dataset.id);
+            if (!currentItem) return;
+            const newTitle = titleEl.textContent.trim() || currentItem.title;
+            titleEl.textContent = newTitle;
+            if (currentItem.title !== newTitle) {
+              currentItem.title = newTitle;
+              saveCountdowns();
+            }
+            const titleLen = newTitle.length;
+            titleEl.classList.remove('title-md', 'title-sm');
+            if (titleLen > 32) titleEl.classList.add('title-sm');
+            else if (titleLen > 16) titleEl.classList.add('title-md');
+          });
+
+          titleEl.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+              e.preventDefault();
+              titleEl.blur();
+            }
+          });
+
+          card.querySelector('.card-delete-btn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            deleteCountdown(item.id);
+          });
+
+          countdownList.appendChild(card);
+        } else {
+          existingCards.delete(item.id);
+        }
+
+        const titleEl = card.querySelector('.separator-title');
+        if (document.activeElement !== titleEl) {
+          titleEl.textContent = item.title || 'Section';
+        }
+
+        // Stepped font sizing matching card titles
+        const titleLen = (titleEl.textContent || item.title || '').length;
+        titleEl.classList.remove('title-md', 'title-sm');
+        if (titleLen > 32) {
+          titleEl.classList.add('title-sm');
+        } else if (titleLen > 16) {
+          titleEl.classList.add('title-md');
+        }
+
+        const dragHandle = card.querySelector('.card-drag-handle');
+        const deleteBtn = card.querySelector('.card-delete-btn');
+        if (editMode) {
+          card.classList.add('edit-mode-active');
+          titleEl.contentEditable = 'true';
+          titleEl.title = 'Click to rename';
+          if (dragHandle) {
+            dragHandle.classList.remove('hidden');
+            dragHandle.setAttribute('draggable', 'true');
+          }
+          if (deleteBtn) deleteBtn.classList.remove('hidden');
+        } else {
+          card.classList.remove('edit-mode-active');
+          titleEl.contentEditable = 'false';
+          titleEl.removeAttribute('title');
+          if (dragHandle) {
+            dragHandle.classList.add('hidden');
+            dragHandle.removeAttribute('draggable');
+          }
+          if (deleteBtn) deleteBtn.classList.add('hidden');
+        }
+
+        card.style.setProperty('--card-accent', item.color || '#6366f1');
+        return; // Skip countdown math for separator
+      }
+
       const remainingMs = item.targetTimestamp - now;
       const isCompleted = remainingMs <= 0;
 
