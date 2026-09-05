@@ -271,35 +271,94 @@ body {
   z-index: 5;
 }
 
-/* 1-Tap Reset Button on Card */
-.card-reset-btn {
-  background: rgba(99, 102, 241, 0.12);
-  border: 1px solid rgba(99, 102, 241, 0.25);
-  color: #818cf8;
-  height: 26px;
-  padding: 0 0.55rem;
+/* Hold-to-Reset Zone on Right Side of Card */
+.card-hold-zone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0.25rem 0.5rem;
   border-radius: var(--radius-sm);
-  display: inline-flex;
-  align-items: center;
-  gap: 0.3rem;
-  font-size: 0.72rem;
-  font-weight: 700;
   cursor: pointer;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
+  touch-action: pan-y;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+  transition: transform 0.18s cubic-bezier(0.34, 1.56, 0.64, 1), background 0.2s ease;
 }
 
-.card-reset-btn svg {
-  transition: transform 0.3s ease;
+.card-hold-zone:hover {
+  background: rgba(255, 255, 255, 0.04);
 }
 
-.card-reset-btn:hover {
-  background: rgba(99, 102, 241, 0.25);
-  color: #a5b4fc;
+.card-hold-zone.is-holding {
+  transform: scale(0.93);
+  background: rgba(255, 255, 255, 0.08);
 }
 
-.card-reset-btn:active svg {
-  transform: rotate(-180deg);
+/* Hold Progress Track & Bar */
+.hold-progress-track {
+  position: absolute;
+  bottom: 0;
+  left: 4px;
+  right: 4px;
+  height: 2.5px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease;
+}
+
+.card-hold-zone.is-holding .hold-progress-track {
+  opacity: 1;
+}
+
+.hold-progress-bar {
+  height: 100%;
+  width: 0%;
+  background: var(--card-accent, #6366f1);
+  box-shadow: 0 0 8px var(--card-accent, #6366f1);
+  border-radius: inherit;
+}
+
+.card-hold-zone.is-holding .hold-progress-bar {
+  animation: holdProgressFill 1000ms linear forwards;
+}
+
+@keyframes holdProgressFill {
+  0% {
+    width: 0%;
+  }
+  100% {
+    width: 100%;
+  }
+}
+
+/* Subtle card holding & success pop effects */
+.countdown-card.card-is-holding {
+  border-color: var(--card-accent, rgba(99, 102, 241, 0.5)) !important;
+  box-shadow: 0 0 16px rgba(99, 102, 241, 0.2) !important;
+}
+
+.countdown-card.reset-success {
+  animation: cardResetFlash 0.38s ease-out forwards;
+}
+
+@keyframes cardResetFlash {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.03);
+    border-color: #ffffff !important;
+    box-shadow: 0 0 24px var(--card-accent, #6366f1), 0 0 35px rgba(255, 255, 255, 0.3) !important;
+  }
+  100% {
+    transform: scale(1);
+  }
 }
 
 .card-delete-btn {
@@ -325,7 +384,7 @@ body {
   background: rgba(244, 63, 94, 0.1);
 }
 
-/* Dynamic 2-Unit Display beside title */
+/* Dynamic 2-Unit Display inside hold zone */
 .countdown-units {
   display: flex;
   align-items: baseline;
@@ -333,6 +392,12 @@ body {
   user-select: none;
   -webkit-user-select: none;
   pointer-events: none;
+}
+
+.countdown-card.edit-mode-active .card-hold-zone {
+  cursor: default;
+  pointer-events: none;
+  background: transparent;
 }
 
 .unit-block {

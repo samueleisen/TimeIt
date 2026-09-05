@@ -148,9 +148,10 @@
       if ('Notification' in window && Notification.permission === 'granted') {
         const title = `${item.title || 'Timer'} Ready!`;
         const options = {
+          body: 'Countdown has completed.',
           icon: 'Time-Favico2.jpeg',
           badge: 'Time-Favico2.jpeg',
-          tag: `timekeeper-${item.id}`,
+          tag: 'timekeeper-active-alert', // Single fixed tag so new notifications overlap and replace earlier ones
           renotify: true
         };
         if (navigator.serviceWorker && navigator.serviceWorker.controller) {
@@ -650,14 +651,19 @@
             </div>
             <h3 class="card-title"></h3>
             <div class="card-actions">
-              <div class="countdown-units">
-                <div class="unit-block">
-                  <span class="unit-value unit1-val">00</span>
-                  <span class="unit-label unit1-lbl">D</span>
+              <div class="card-hold-zone" title="Hold 1s to reset timer" aria-label="Hold 1s to reset timer">
+                <div class="countdown-units">
+                  <div class="unit-block">
+                    <span class="unit-value unit1-val">00</span>
+                    <span class="unit-label unit1-lbl">D</span>
+                  </div>
+                  <div class="unit-block">
+                    <span class="unit-value unit2-val">00</span>
+                    <span class="unit-label unit2-lbl">H</span>
+                  </div>
                 </div>
-                <div class="unit-block">
-                  <span class="unit-value unit2-val">00</span>
-                  <span class="unit-label unit2-lbl">H</span>
+                <div class="hold-progress-track">
+                  <div class="hold-progress-bar"></div>
                 </div>
               </div>
               <button class="card-delete-btn hidden" title="Delete" aria-label="Delete">
@@ -703,6 +709,83 @@
           });
         }
 
+        // Hold-to-Reset Handler for Normal Mode (Edit Mode OFF)
+        const holdZone = card.querySelector('.card-hold-zone');
+        if (holdZone) {
+          let holdTimer = null;
+          let startX = 0;
+          let startY = 0;
+          let isHolding = false;
+
+          const startHold = (e) => {
+            // Only active in Normal Mode (Edit Mode OFF)
+            if (editMode) return;
+            if (e.button !== undefined && e.button !== 0) return;
+
+            const currentItem = countdowns.find(c => c.id === card.dataset.id);
+            if (!currentItem) return;
+
+            // If timer has already finished (<= 0), full-card 1-tap overlay handles reset
+            if (currentItem.targetTimestamp - Date.now() <= 0) return;
+
+            isHolding = true;
+            startX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            startY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+
+            holdZone.classList.add('is-holding');
+            card.classList.add('card-is-holding');
+
+            clearTimeout(holdTimer);
+            holdTimer = setTimeout(() => {
+              if (!isHolding) return;
+              isHolding = false;
+              holdZone.classList.remove('is-holding');
+              card.classList.remove('card-is-holding');
+
+              // Tactile feedback
+              triggerHapticVibration();
+
+              // Card pop animation
+              card.classList.add('reset-success');
+              setTimeout(() => card.classList.remove('reset-success'), 400);
+
+              // Perform reset
+              resetCountdown(card.dataset.id);
+            }, 1000); // 1 full second hold
+          };
+
+          const cancelHold = () => {
+            if (!isHolding) return;
+            isHolding = false;
+            clearTimeout(holdTimer);
+            holdTimer = null;
+            holdZone.classList.remove('is-holding');
+            card.classList.remove('card-is-holding');
+          };
+
+          const checkMove = (e) => {
+            if (!isHolding) return;
+            const currentX = e.clientX || (e.touches && e.touches[0] ? e.touches[0].clientX : 0);
+            const currentY = e.clientY || (e.touches && e.touches[0] ? e.touches[0].clientY : 0);
+            const dist = Math.hypot(currentX - startX, currentY - startY);
+            // If moved > 8px (scrolling the list), cancel hold immediately
+            if (dist > 8) {
+              cancelHold();
+            }
+          };
+
+          holdZone.addEventListener('pointerdown', startHold);
+          holdZone.addEventListener('pointermove', checkMove);
+          holdZone.addEventListener('pointerup', cancelHold);
+          holdZone.addEventListener('pointercancel', cancelHold);
+          holdZone.addEventListener('pointerleave', cancelHold);
+
+          // Prevent native long-press popup menu on mobile
+          holdZone.addEventListener('contextmenu', (e) => {
+            if (!editMode) e.preventDefault();
+          });
+        }
+
         card.querySelector('.card-delete-btn').addEventListener('click', (e) => {
           e.stopPropagation();
           deleteCountdown(item.id);
@@ -722,6 +805,7 @@
       // Edit Mode Behavior: Toggle contenteditable, delete button, drag handle & draggable
       const dragHandle = card.querySelector('.card-drag-handle');
       if (editMode) {
+        card.classList.add('edit-mode-active');
         titleEl.contentEditable = 'true';
         titleEl.title = 'Click to rename';
         if (dragHandle) {
@@ -729,6 +813,7 @@
           dragHandle.setAttribute('draggable', 'true');
         }
       } else {
+        card.classList.remove('edit-mode-active');
         titleEl.contentEditable = 'false';
         titleEl.removeAttribute('title');
         if (dragHandle) {
@@ -753,6 +838,10 @@
         titleEl.classList.add('title-md');
       }
 
+      // Set card accent color variable for dynamic hold progress bar & gauge
+      const cardColor = item.color || '#6366f1';
+      card.style.setProperty('--card-accent', cardColor);
+
       // Background Progress Fill Gauge Calculation (0% -> 100%)
       const totalDuration = item.initialDurationMs || (item.targetTimestamp - item.createdAt) || 1;
       let progressPercent = 0;
@@ -762,7 +851,6 @@
         const elapsed = totalDuration - remainingMs;
         progressPercent = Math.min(100, Math.max(0, (elapsed / totalDuration) * 100));
       }
-      const cardColor = item.color || '#6366f1';
       const bgGauge = card.querySelector('.card-bg-gauge');
       if (bgGauge) {
         bgGauge.style.width = `${progressPercent.toFixed(2)}%`;
