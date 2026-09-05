@@ -1,0 +1,23 @@
+{
+  "name": "TimeIt - Offline Countdown",
+  "short_name": "TimeIt",
+  "description": "Minimal offline-first countdown timer manager for mobile",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#090d16",
+  "theme_color": "#090d16",
+  "icons": [
+    {
+      "src": "Time-Favico2.jpeg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

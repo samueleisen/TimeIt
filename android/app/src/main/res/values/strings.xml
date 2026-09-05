@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TimeIt</string>
+    <string name="title_activity_main">TimeIt</string>
+    <string name="package_name">com.samueleisen.timeit</string>
+    <string name="custom_url_scheme">com.samueleisen.timeit</string>
+</resources>

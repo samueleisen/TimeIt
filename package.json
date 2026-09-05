@@ -1,0 +1,27 @@
+{
+  "name": "timekeeper",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "build": "node -e \"const fs = require('fs'); fs.mkdirSync('www', {recursive: true}); ['index.html','style.css','app.js','local-notifications.js','manifest.json','Time-Favico2.jpeg','icon.svg','sw.js'].forEach(f => fs.copyFileSync(f, 'www/' + f)); console.log('Copied to www');\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/samueleisen/TimeIt.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/samueleisen/TimeIt/issues"
+  },
+  "homepage": "https://github.com/samueleisen/TimeIt#readme",
+  "dependencies": {
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/local-notifications": "^8.3.1"
+  }
+}
