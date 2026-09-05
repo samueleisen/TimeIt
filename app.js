@@ -33,6 +33,13 @@
   const modalTitle = document.getElementById('modalTitle');
   const modalSubtitle = document.getElementById('modalSubtitle');
   const dateTimeGroup = document.getElementById('dateTimeGroup');
+  const modeBtnDate = document.getElementById('modeBtnDate');
+  const modeBtnDuration = document.getElementById('modeBtnDuration');
+  const dateInputView = document.getElementById('dateInputView');
+  const durationInputView = document.getElementById('durationInputView');
+  const customDaysInput = document.getElementById('customDaysInput');
+  const customHoursInput = document.getElementById('customHoursInput');
+  const customMinsInput = document.getElementById('customMinsInput');
   const eventTitleInput = document.getElementById('eventTitleInput');
   const eventDateInput = document.getElementById('eventDateInput');
   const startCountdownBtn = document.getElementById('startCountdownBtn');
@@ -55,6 +62,7 @@
   let editMode = false;
   let soundAlertsEnabled = localStorage.getItem('timekeeper_sound_alerts') !== 'false';
   let currentModalMode = 'custom'; // 'shortcut' | 'custom'
+  let customInputMode = 'duration'; // 'duration' | 'date'
   let currentSelectedShortcut = null;
   let selectedGaugeColor = '#6366f1';
 
@@ -462,6 +470,32 @@
     setTimeout(() => eventTitleInput.focus(), 150);
   }
 
+  // Custom Input Mode Switcher (Date & Time ⟷ Duration)
+  function setCustomInputMode(mode) {
+    customInputMode = mode;
+    if (mode === 'date') {
+      if (modeBtnDate) modeBtnDate.classList.add('active');
+      if (modeBtnDuration) modeBtnDuration.classList.remove('active');
+      if (dateInputView) dateInputView.classList.remove('hidden');
+      if (durationInputView) durationInputView.classList.add('hidden');
+    } else {
+      if (modeBtnDuration) modeBtnDuration.classList.add('active');
+      if (modeBtnDate) modeBtnDate.classList.remove('active');
+      if (durationInputView) durationInputView.classList.remove('hidden');
+      if (dateInputView) dateInputView.classList.add('hidden');
+      if (customHoursInput && !customDaysInput.value && !customHoursInput.value && !customMinsInput.value) {
+        customHoursInput.value = '5';
+      }
+    }
+  }
+
+  if (modeBtnDate) {
+    modeBtnDate.addEventListener('click', () => setCustomInputMode('date'));
+  }
+  if (modeBtnDuration) {
+    modeBtnDuration.addEventListener('click', () => setCustomInputMode('duration'));
+  }
+
   // Open Full Custom Countdown Modal (2nd tap on FAB)
   function openCustomModal() {
     currentModalMode = 'custom';
@@ -472,6 +506,8 @@
     modalSubtitle.style.display = 'none';
 
     dateTimeGroup.classList.remove('hidden');
+    setCustomInputMode(customInputMode || 'date');
+
     eventDateInput.value = formatForInput(Date.now() + 24 * 3600 * 1000);
     eventDateInput.min = new Date().toISOString().slice(0, 16);
     eventTitleInput.value = '';
@@ -480,12 +516,22 @@
     resetColorPickerUI();
 
     sheetBackdrop.classList.remove('hidden');
-    setTimeout(() => eventTitleInput.focus(), 150);
+    setTimeout(() => {
+      if (customInputMode === 'duration' && customHoursInput) {
+        customHoursInput.focus();
+        customHoursInput.select();
+      } else {
+        eventTitleInput.focus();
+      }
+    }, 150);
   }
 
   function closeSheet() {
     sheetBackdrop.classList.add('hidden');
     addCountdownForm.reset();
+    if (customDaysInput) customDaysInput.value = '';
+    if (customHoursInput) customHoursInput.value = '';
+    if (customMinsInput) customMinsInput.value = '';
     resetColorPickerUI();
   }
 
@@ -549,8 +595,30 @@
       if (!title) {
         title = `${currentSelectedShortcut.label.replace('+', '')} Countdown`;
       }
+    } else if (customInputMode === 'duration') {
+      const days = parseInt(customDaysInput.value, 10) || 0;
+      const hours = parseInt(customHoursInput.value, 10) || 0;
+      const mins = parseInt(customMinsInput.value, 10) || 0;
+      const totalMs = (days * 86400 + hours * 3600 + mins * 60) * 1000;
+
+      if (totalMs <= 0) {
+        alert('Please enter a duration of at least 1 minute.');
+        if (customHoursInput) customHoursInput.focus();
+        return;
+      }
+
+      initialDurationMs = totalMs;
+      targetTimestamp = Date.now() + totalMs;
+
+      if (!title) {
+        const parts = [];
+        if (days > 0) parts.push(`${days}d`);
+        if (hours > 0) parts.push(`${hours}h`);
+        if (mins > 0) parts.push(`${mins}m`);
+        title = parts.length > 0 ? `${parts.join(' ')} Countdown` : 'Custom Countdown';
+      }
     } else {
-      // Custom mode
+      // Custom mode - Date & Time
       const dateValue = eventDateInput.value;
       if (!dateValue) return;
 

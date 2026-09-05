@@ -90,10 +90,38 @@
           <input type="text" id="eventTitleInput" class="form-input" maxlength="50" required autofocus />
         </div>
 
-        <!-- Custom Date & Time Picker (Toggled based on mode) -->
+        <!-- Custom Date/Time vs Duration Switcher Group -->
         <div class="form-group" id="dateTimeGroup">
-          <label for="eventDateInput" class="form-label">Target Date & Time</label>
-          <input type="datetime-local" id="eventDateInput" class="form-input" />
+          <div class="form-label-row">
+            <label class="form-label" id="timeModeLabel">Target</label>
+            <div class="mode-pill-toggle" role="tablist">
+              <button type="button" class="pill-btn" id="modeBtnDate" data-mode="date">Date & Time</button>
+              <button type="button" class="pill-btn active" id="modeBtnDuration" data-mode="duration">Duration</button>
+            </div>
+          </div>
+
+          <!-- View 1: Exact Date & Time -->
+          <div id="dateInputView" class="time-input-view hidden">
+            <input type="datetime-local" id="eventDateInput" class="form-input" />
+          </div>
+
+          <!-- View 2: Duration (Days, Hours, Mins) -->
+          <div id="durationInputView" class="time-input-view">
+            <div class="duration-input-grid">
+              <div class="duration-field">
+                <input type="number" id="customDaysInput" class="form-input num-input" min="0" max="999" placeholder="0" />
+                <span class="duration-unit-label">Days</span>
+              </div>
+              <div class="duration-field">
+                <input type="number" id="customHoursInput" class="form-input num-input" min="0" max="23" placeholder="0" />
+                <span class="duration-unit-label">Hours</span>
+              </div>
+              <div class="duration-field">
+                <input type="number" id="customMinsInput" class="form-input num-input" min="0" max="59" placeholder="0" />
+                <span class="duration-unit-label">Mins</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <!-- Gauge Color Picker -->
